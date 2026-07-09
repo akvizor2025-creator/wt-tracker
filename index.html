@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WT Update Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Saira+Stencil+One&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12150f; --panel:#1a1f14; --panel2:#22281a; --line:#3a4429;
+    --olive:#6b7a4a; --amber:#ffb648; --amber-dim:#c9913a; --txt:#d8dcc8; --dim:#8a9375;
+    --red:#e05c4a; --green:#8fbf5a; --blue:#6aa7c9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--txt); font-family:'Chakra Petch',sans-serif; min-height:100vh;
+    background-image:
+      repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.12) 2px 4px),
+      radial-gradient(ellipse at 50% -20%, #2a3320 0%, var(--bg) 60%);
+  }
+  .wrap{max-width:1150px;margin:0 auto;padding:24px 18px 60px}
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:14px;border:1px solid var(--line);
+    background:linear-gradient(180deg,#232a19,#181d11); padding:16px 20px; position:relative}
+  header::before,header::after,.card::before,.card::after{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--amber)}
+  header::before{top:-2px;left:-2px;border-right:none;border-bottom:none}
+  header::after{bottom:-2px;right:-2px;border-left:none;border-top:none}
+  h1{font-family:'Saira Stencil One',sans-serif;font-size:26px;letter-spacing:3px;color:var(--amber);text-transform:uppercase}
+  .sub{font-size:12px;color:var(--dim);letter-spacing:2px;text-transform:uppercase}
+  .status{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:1px}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--dim);box-shadow:0 0 8px currentColor}
+  .dot.live{background:var(--green);color:var(--green);animation:pulse 1.6s infinite}
+  .dot.off{background:var(--amber-dim);color:var(--amber-dim)}
+  @keyframes pulse{50%{opacity:.4}}
+  .banner{margin-top:18px;border:1px solid var(--line);background:var(--panel);padding:18px 20px;
+    display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+  .banner .patch{font-family:'Saira Stencil One',sans-serif;font-size:34px;color:#fff;letter-spacing:2px;line-height:1}
+  .banner .meta{font-size:13px;color:var(--dim)}
+  .btn{margin-left:auto;background:var(--amber);color:#1a1505;border:none;font-family:inherit;font-weight:700;
+    letter-spacing:1px;padding:10px 18px;cursor:pointer;text-transform:uppercase;font-size:12px;text-decoration:none}
+  .btn:hover{background:#ffca75}
+  .btn.ghost{background:transparent;color:var(--amber);border:1px solid var(--amber)}
+  nav{display:flex;gap:6px;margin-top:20px;flex-wrap:wrap}
+  nav button{flex:1;min-width:110px;background:var(--panel);border:1px solid var(--line);color:var(--dim);
+    font-family:inherit;font-weight:600;letter-spacing:2px;padding:11px 8px;cursor:pointer;text-transform:uppercase;font-size:12px;
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
+  nav button.on{background:var(--olive);color:#fff;border-color:var(--olive)}
+  nav button:hover{color:var(--amber)}
+  nav button .cnt{color:var(--amber);margin-left:4px}
+  nav button.on .cnt{color:#ffe6b0}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px;border:1px solid var(--line);
+    background:var(--panel);padding:10px 12px}
+  .toolbar.hidden{display:none}
+  .toolbar label{font-size:10px;letter-spacing:2px;color:var(--dim);text-transform:uppercase}
+  .toolbar select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);font-family:inherit;
+    font-size:12px;padding:7px 10px;letter-spacing:1px;cursor:pointer}
+  .toolbar select:focus{outline:1px solid var(--amber)}
+  .chip{background:var(--panel2);border:1px solid var(--line);color:var(--dim);font-family:inherit;font-size:11px;
+    letter-spacing:1px;padding:6px 10px;cursor:pointer;text-transform:uppercase}
+  .chip.on{border-color:var(--amber);color:var(--amber)}
+  .count{margin-left:auto;font-size:11px;color:var(--dim);letter-spacing:1px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;margin-top:14px}
+  .card{border:1px solid var(--line);background:var(--panel);position:relative;cursor:pointer;transition:border-color .15s}
+  .card:hover{border-color:var(--amber-dim)}
+  .card::before{top:-2px;left:-2px;border-right:none;border-bottom:none;width:10px;height:10px;opacity:0;transition:opacity .15s}
+  .card::after{bottom:-2px;right:-2px;border-left:none;border-top:none;width:10px;height:10px;opacity:0;transition:opacity .15s}
+  .card:hover::before,.card:hover::after,.card.open::before,.card.open::after{opacity:1}
+  .thumb{height:150px;overflow:hidden;position:relative;background:
+    repeating-linear-gradient(45deg,#202616 0 12px,#1a1f14 12px 24px)}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.85);transition:filter .2s,transform .3s}
+  .card:hover .thumb img{filter:saturate(1.1);transform:scale(1.03)}
+  .thumb .ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--dim)}
+  .thumb .ph .ic{font-size:40px;opacity:.7}
+  .thumb .ph .tx{font-size:9px;letter-spacing:2px;text-transform:uppercase}
+  .thumb .grad{position:absolute;inset:auto 0 0 0;height:50px;background:linear-gradient(transparent,rgba(18,21,15,.9))}
+  .card-h{padding:12px 14px;display:flex;align-items:center;gap:10px}
+  .flag{font-size:20px;filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
+  .vname{font-weight:700;font-size:15px;color:#fff}
+  .vsub{font-size:11px;color:var(--dim);letter-spacing:1px;text-transform:uppercase}
+  .badges{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+  .b{font-size:9px;letter-spacing:1px;padding:2px 6px;text-transform:uppercase;font-weight:700}
+  .b.new{background:var(--green);color:#14200a}
+  .b.pack{background:var(--amber);color:#241a05}
+  .b.prem{background:var(--blue);color:#0d1c26}
+  .b.squad{background:#a08cc9;color:#1c1329}
+  .b.remodel{background:var(--red);color:#2b0f0a}
+  .b.rank{background:transparent;border:1px solid var(--dim);color:var(--txt)}
+  .info{display:none;border-top:1px dashed var(--line);padding:12px 14px;font-size:13px;line-height:1.55;color:var(--txt)}
+  .card.open .info{display:block}
+  .armt{margin:10px 0 2px;font-size:10px;letter-spacing:2px;color:var(--amber-dim);text-transform:uppercase}
+  ul.arm{list-style:none;margin:4px 0 8px}
+  ul.arm li{padding:4px 0 4px 16px;position:relative;font-size:12.5px;border-bottom:1px dotted #2c3520}
+  ul.arm li::before{content:"▹";position:absolute;left:0;color:var(--amber)}
+  .stats{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .stat{border:1px solid var(--line);background:var(--panel2);padding:6px 10px;min-width:86px}
+  .stat .k{font-size:9px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase}
+  .stat .v{font-size:16px;font-weight:700;color:var(--amber)}
+  .links a{color:var(--amber);text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase;margin-right:14px}
+  .links a:hover{text-decoration:underline}
+  .brnote{font-size:11px;color:var(--dim);font-style:italic}
+  .sec-title{font-family:'Saira Stencil One',sans-serif;color:var(--amber);letter-spacing:2px;font-size:16px;
+    margin:22px 0 4px;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+  .sec-title::after{content:"";flex:1;height:1px;background:var(--line)}
+  .feat{border:1px solid var(--line);background:var(--panel);padding:0;margin-top:10px;overflow:hidden}
+  .feat .fbody{padding:14px 16px}
+  .feat h3{color:#fff;font-size:14px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+  .feat p{font-size:13px;color:var(--txt);line-height:1.55}
+  .feat img.fimg{width:100%;max-height:260px;object-fit:cover;display:block}
+  .ba{position:relative;user-select:none;overflow:hidden}
+  .ba img{width:100%;display:block}
+  .ba .top{position:absolute;inset:0;overflow:hidden}
+  .ba .top img{position:absolute;inset:0;height:100%;width:auto;min-width:100%;object-fit:cover}
+  .ba input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:ew-resize;margin:0}
+  .ba .bar{position:absolute;top:0;bottom:0;width:3px;background:var(--amber);pointer-events:none;box-shadow:0 0 10px rgba(255,182,72,.8)}
+  .ba .knob{position:absolute;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;
+    background:var(--amber);color:#241a05;display:flex;align-items:center;justify-content:center;font-weight:700;pointer-events:none;font-size:13px}
+  .ba .lb{position:absolute;top:10px;font-size:10px;letter-spacing:2px;padding:3px 8px;background:rgba(0,0,0,.65);color:#fff;text-transform:uppercase;pointer-events:none}
+  .ba .lb.before{left:10px}.ba .lb.after{right:10px}
+  .newslist{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+  .newsitem{border:1px solid var(--line);background:var(--panel);padding:12px 14px;display:flex;gap:12px;align-items:baseline;text-decoration:none}
+  .newsitem:hover{border-color:var(--amber-dim)}
+  .newsitem .d{font-size:11px;color:var(--dim);white-space:nowrap;min-width:82px}
+  .newsitem .t{color:var(--txt);font-size:14px}
+  .newsitem .t:hover{color:var(--amber)}
+  .note{margin-top:12px;font-size:12px;color:var(--dim);border-left:3px solid var(--amber-dim);padding:8px 12px;background:var(--panel)}
+  footer{margin-top:36px;font-size:11px;color:var(--dim);text-align:center;letter-spacing:1px}
+  footer a{color:var(--amber-dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>⟨ WT Update Tracker ⟩</h1>
+      <div class="sub">War Thunder · Patch Intel Console</div>
+    </div>
+    <div class="status"><span class="dot off" id="dot"></span><span id="statusTxt">CACHED DATA</span></div>
+  </header>
+
+  <div class="banner">
+    <div>
+      <div class="sub">Current Major Update</div>
+      <div class="patch">HEAVY CAVALRY</div>
+      <div class="meta">Released 24 June 2026 · 40+ new vehicles · ARMs &amp; ESM · Man-in-the-loop · BC7 textures</div>
+      <div class="meta" id="patchAlert"></div>
+    </div>
+    <a class="btn" href="https://warthunder.com/en/game/changelog/current/1862" target="_blank">Full Changelog ↗</a>
+    <a class="btn ghost" href="https://warthunder.com/en/news/?tags=Development" target="_blank">Dev Blogs ↗</a>
+  </div>
+
+  <nav id="tabs"></nav>
+  <div id="toolbar" class="toolbar hidden"></div>
+  <div id="content"></div>
+
+  <footer>
+    Unofficial fan tool · data &amp; images from <a href="https://warthunder.com/en/news" target="_blank">warthunder.com</a> ·
+    live BR lookups via community <a href="https://github.com/Sgambe33/WarThunder-Vehicles-API" target="_blank">WT Vehicles API</a> · not affiliated with Gaijin
+  </footer>
+</div>
+<script>
+/* ================= BAKED DATA (snapshot: 9 Jul 2026) ================= */
+const S="https://staticfiles.warthunder.com/upload/image/";
+const FLAGS={usa:"🇺🇸",germany:"🇩🇪",ussr:"🇷🇺",britain:"🇬🇧",japan:"🇯🇵",china:"🇨🇳",italy:"🇮🇹",france:"🇫🇷",sweden:"🇸🇪",israel:"🇮🇱"};
+const NATION={usa:"USA",germany:"Germany",ussr:"USSR",britain:"Great Britain",japan:"Japan",china:"China",italy:"Italy",france:"France",sweden:"Sweden",israel:"Israel"};
+const ICON={ground:"🛡️",air:"✈️",heli:"🚁",naval:"⚓"};
+
+/* ord = announcement order (dev blog number; higher = announced later). */
+const V=(name,nation,cls,badges,desc,arm,img,dev,rank,ord)=>({name,nation,cls,badges,desc,arm,img,dev,rank,ord:ord||10108});
+
+const DATA={
+ground:[
+ V("M1A2 SEPv3","usa","Main Battle Tank",["new"],
+   "The most modern US Abrams. Turret cheeks are virtually invulnerable at medium-long range, plus researchable TUSK package with curved ARAT-2 ERA plates on hull and turret sides.",
+   ["120 mm M256 smoothbore cannon","M829A3 APFSDS — improved effectiveness vs ERA","XM1147 HEF round with programmable fuse","TUSK add-on armor: ARAT-2 ERA vs shaped charges","Modern FCS, thermal sights"],
+   S+"0_2026/6_June/Abrams/940x530_01_m1a2c_08eb6abfdd37f1a3839db746491982a4.jpg",
+   "https://warthunder.com/en/news/10066-development-m1a2c-abrams-heavy-cavalry-en","VIII",10066),
+ V("M1A2 (Trophy-HV)","usa","Main Battle Tank",["new"],
+   "SEP V2 Abrams enhanced with the Trophy-HV hard-kill Active Protection System — intercepts incoming ATGMs and rockets before they hit.",
+   ["120 mm M256 smoothbore cannon","M829A3 APFSDS round","Trophy-HV hard-kill APS","Add-on ERA protection"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_04_m1a2c_39e91c461acb4ab8d6a3a1472127152b.jpg",
+   "https://warthunder.com/en/news/10066-development-m1a2c-abrams-heavy-cavalry-en","VIII",10066),
+ V("M60A1 Predator","usa","MBT · Pack",["new","pack"],
+   "Pre-order pack M60A1 with add-on protection for the US ground tree.",
+   ["105 mm M68 rifled cannon","APFSDS / HEAT-FS / APDS selection","Add-on armor package"],
+   null,"https://warthunder.com/en/news/10048-development-pre-orders-m60a1-predator-en",null,10048),
+ V("Hummel","germany","SPG · 150 mm",["new"],
+   "The classic WW2 self-propelled howitzer returns to the German tree — a formidable and fun lineup filler.",
+   ["150 mm sFH 18 howitzer","Fires HE, HEAT, APHE and SAP","HEAT pen ≈100 mm at any distance","Huge HE payload — overpressure machine","Open compartment — watch for MGs and arty"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_hummel_02_fe5d6a6bc21e9c195d02ff79e9da4ad6.jpg",
+   "https://warthunder.com/en/news/10080-development-hummel-a-lot-of-buzz-en",null,10080),
+ V("Puma u14","germany","IFV · Pack",["new","pack"],
+   "Premium Puma with pallets strapped to the side and camo netting — a look inspired by Panzergrenadierbataillon 33's 2022 exercises.",
+   ["30 mm MK30-2/ABM autocannon","Airburst (ABM) ammo vs helis and light vehicles","APFSDS belts for light armor","Spall liners and heavy IFV protection"],
+   S+"0_2026/6_June/Heavy_Cavalry/news_940_ger_schutzenpanzer_puma_vjtf_mod_c82ac65214637577dd1996277411145a.jpeg",
+   "https://warthunder.com/en/news/10035-development-pre-orders-puma-u14-en","VII",10035),
+ V("T-90M (Arena-M)","ussr","Main Battle Tank",["new"],
+   "T-90M fitted with the Arena-M active protection system for the USSR top ranks — hard-kill interception of incoming projectiles.",
+   ["125 mm 2A46M-5 smoothbore cannon","3BM60 'Svinets-2' APFSDS","Arena-M hard-kill APS","Relikt ERA coverage"],
+   null,null,null,10108),
+ V("M1A1 (Australia)","britain","MBT · Squadron",["new","squad"],
+   "Australian M1A1 AIM as a squadron vehicle — Australian vehicles now find their home in the British tree, like India and South Africa before.",
+   ["120 mm M256 smoothbore cannon","KE-W APFSDS rounds","Excellent mobility and gun handling"],
+   S+"0_2026/6_June/Abrams/940x530_03_m1a2c_7db00816602aed2e65ddb7ed9b3cf1d4.jpg",
+   "https://warthunder.com/en/news/10066-development-m1a2c-abrams-heavy-cavalry-en",null,10066),
+ V("M1A2 (Australia)","britain","Main Battle Tank",["new"],
+   "Researchable Australian M1A2 for Britain's top tier — same enhanced turret protection as the US SEPv3.",
+   ["120 mm M256 smoothbore cannon","KE-W A2 tungsten APFSDS (slightly below M829A3)","TUSK ERA package","Enhanced turret cheek armor"],
+   S+"0_2026/6_June/Abrams/940x530_04_m1a2c_dca1a3ec0fbfc2005f06b88fb037ccd6.jpg",
+   "https://warthunder.com/en/news/10066-development-m1a2c-abrams-heavy-cavalry-en","VIII",10066),
+ V("Leopard 2RI (Indonesia)","japan","Main Battle Tank",["new"],
+   "Indonesian Leopard 2A4 upgrade joining Japan's tree — modernized protection and FCS.",
+   ["120 mm L/44 smoothbore cannon","Modern APFSDS rounds","Add-on composite armor package"],
+   null,"https://warthunder.com/en/news/10105-development-leopard-2ri-in-the-indonesian-jungle-en",null,10105),
+ V("PGZ88","china","SPAA · Radar",["new"],
+   "Radar-equipped SPAA with twin belt-fed 37 mm guns — a handy addition to several Chinese lineups.",
+   ["Twin 37 mm belt-fed autocannons","Search radar for target acquisition","HEI-T / AP-T belts — can shred light vehicles"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_news_pgz_88_bd22e4c687ccad003d3fafe1728d2d1b.jpg",
+   "https://warthunder.com/en/news/10028-development-pgz88-jack-of-all-trades-en",null,10028),
+ V("Palmaria","italy","SPH · 155 mm",["new"],
+   "155 mm howitzer on an OF-40 chassis — gives Italian rank IV lineups serious HE slinging power.",
+   ["155 mm howitzer, autoloaded","Big HE shells — overpressure kills","HEAT rounds for direct-fire duels","OF-40 chassis mobility"],
+   S+"0_2026/6_June/Heavy_Cavalry/940_06_palmaria_d2401804ad05de537d7222f26b83516a.jpg",
+   "https://warthunder.com/en/news/10043-development-palmaria-the-island-sized-slingshot-en","IV",10043),
+ V("Leopard 1A5BE (Belgium)","france","Main Battle Tank",["new"],
+   "Belgian Leopard 1A5 added to the French tree.",
+   ["105 mm L7A3 rifled cannon","APFSDS / HEAT-FS rounds","Thermal sights, stabilized gun"],
+   null,null,null,10108),
+ V("NOMADS (Norway)","sweden","SPAA / SAM",["new"],
+   "Norwegian NOMADS mobile air-defense system for Sweden.",
+   ["IRIS-T IR-guided surface-to-air missiles","High off-boresight, flare-resistant seeker","Radar target acquisition"],
+   null,null,null,10108),
+ V("Hunter AFV (Singapore)","israel","AFV · Spike-LR",["new"],
+   "Singapore enters the fray! Fast forwards AND backwards, letting it scoot around and be a nuisance.",
+   ["30 mm Bushmaster II Mk44 autocannon","APFSDS belts for light armor","Spike-LR fire-and-forget ATGMs (tandem HEAT — defeats ERA)","Remote turret, thermal optics","High forward/reverse speed"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_news_hunter_afv_9f98392963b91cad91ce68a70e09c47d.jpg",
+   "https://warthunder.com/en/news/10036-development-hunter-afv-singaporean-hunter-en",null,10036),
+],
+air:[
+ V("F-101C Voodoo","usa","Jet Fighter",["new"],
+   "Excellent top speed — one of the fastest at its rank — but travels light.",
+   ["4 × 20 mm cannons","No suspended ordnance","Outstanding acceleration and top speed"],
+   S+"0_2026/6_June/Heavy_Cavalry/940_f_101c_07_1aeb4c71550c24334b786afcd6890de6.jpg",
+   "https://warthunder.com/en/news/10102-development-f-101c-voodoo-the-charm-of-speed-en",null,10102),
+ V("F-14D Super Tomcat","usa","Jet Fighter · Pack",["new","pack"],
+   "Premium Tomcat, deadly in both Air and Ground battles.",
+   ["AIM-54C+ Phoenix long-range missiles","AIM-9M all-aspect IR missiles","JDAM guided bombs","20 mm M61 Vulcan cannon","Great flight performance"],
+   S+"0_2026/6_June/Heavy_Cavalry/news_940_f_14d_cbb6c5c896d0091350a874831c982688.jpg",
+   "https://warthunder.com/en/news/10065-development-pre-order-f-14d-super-tomcat-en","VIII",10065),
+ V("Fw 189 C","germany","Attacker · Premium",["new","prem"],
+   "'The ugliest duckling' — premium German twin-boom oddity.",
+   ["Forward-firing cannon armament","Defensive rear gunner","Light bomb load"],
+   null,"https://warthunder.com/en/news/10104-development-fw-189-s-en",null,10104),
+ V("IA.58A Pucara (Argentina)","germany","Attacker · Pack",["new","pack"],
+   "Argentine twin-turboprop attacker — slow, but an excellent ground pounder in Ground RB.",
+   ["2 × 20 mm Hispano cannons","4 × 7.62 mm machine guns","Wide bomb and rocket options"],
+   S+"0_2026/6_June/Heavy_Cavalry/940_pucara_07_cb99f5c335888e1bf06b533c8b9f2908.jpg",
+   "https://warthunder.com/en/news/10100-development-ia-58a-pucara-argentinas-fortress-en",null,10100),
+ V("Yak-130","ussr","Combat Trainer",["new"],
+   "Small, nimble combat trainer with good ordnance options for its class.",
+   ["Gun pod armament","IR air-to-air missiles","Bombs and rocket pods"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_yak_130_m346_05_dffe8b06df5e674ccb07d6c79fddd71f.jpg",
+   "https://warthunder.com/en/news/10086-development-yak-130-and-m-346fa-a-common-beginning-en",null,10086),
+ V("J-22M1A (Serbia)","ussr","Attacker · Pack",["new","pack"],
+   "Serbian Orao pack attacker for the USSR tree.",
+   ["2 × 23 mm cannons","Bombs and rocket pods","Good low-altitude handling"],
+   null,"https://warthunder.com/en/news/10084-development-pre-order-j-22m1a-serbian-eagle-en",null,10084),
+ V("MiG-29KR (9-41R)","ussr","Jet Fighter",["new"],
+   "Modernized naval Fulcrum variant for the USSR top tier.",
+   ["30 mm GSh-30-1 cannon","R-73 and R-77 air-to-air missiles","Guided bombs for ground strikes"],
+   null,null,null,10108),
+ V("Washington B.Mk.I","britain","Bomber",["new"],
+   "B-29 Superfortress in RAF service — fills the gap between the Lincoln and the Canberra.",
+   ["Massive bomb load","Remote-controlled 12.7 mm turrets all around","High service ceiling"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_01_washington_b1_d038352b9d14786b5768685abd02e11f.jpg",
+   "https://warthunder.com/en/news/10053-development-washington-b1-a-friend-in-need-en",null,10053),
+ V("Welkin F.Mk.I","britain","High-Alt Fighter",["new"],
+   "Westland's high-altitude interceptor with a huge wingspan joins Britain.",
+   ["4 × 20 mm Hispano cannons","Pressurized cockpit — thrives up high","Poor low-alt agility"],
+   null,"https://warthunder.com/en/news/10031-development-welkin-f-mk-i-and-fmki-late-from-heavens-vault-en",null,10031),
+ V("L-39ZA/ART Albatros (Thailand)","japan","Combat Trainer",["new"],
+   "Thai Albatros trainer/light attacker added to Japan.",
+   ["23 mm GSh-23L cannon pod","Bombs and rocket pods","IR missiles"],
+   null,null,null,10108),
+ V("JH-7A2","china","Strike Aircraft",["new"],
+   "Upgraded 'Flying Leopard' strike fighter for China.",
+   ["23 mm twin cannon","Guided bombs and long-range AGMs","Anti-radiation missile capable (new ARM mechanic)"],
+   null,null,null,10108),
+ V("F-16V","china","Jet Fighter",["new"],
+   "The Viper — a top-tier multirole addition for China.",
+   ["20 mm M61 Vulcan cannon","Modern IR + radar air-to-air missiles","AESA radar, guided bombs"],
+   null,null,null,10108),
+ V("M-346FA","italy","Combat Trainer",["new"],
+   "Italian sibling of the Yak-130 — same origin, same nimble handling.",
+   ["Gun pod armament","IR air-to-air missiles","Bombs and rocket pods"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_yak_130_m346_05_dffe8b06df5e674ccb07d6c79fddd71f.jpg",
+   "https://warthunder.com/en/news/10086-development-yak-130-and-m-346fa-a-common-beginning-en",null,10086),
+ V("F-16AM (Netherlands)","france","Jet Fighter · Pack",["new","pack"],
+   "Dutch F-16AM pack aircraft for France.",
+   ["20 mm M61 Vulcan cannon","AIM-9 and AMRAAM missiles","Guided bomb options"],
+   null,null,null,10108),
+ V("AJS37 (Early)","sweden","Strike Aircraft · Pack",["new","pack"],
+   "Early AJS37 Viggen pack for Sweden.",
+   ["30 mm ADEN gun pods","RB-05 / RB-75 guided missiles","Bombs and rockets, high low-alt speed"],
+   null,null,null,10108),
+ V("MiG-21 2000","israel","Jet Fighter · Squadron",["new","squad"],
+   "Israeli-modernized MiG-21 as a squadron vehicle.",
+   ["23 mm GSh-23L cannon","Python 3 IR missiles","Modernized avionics"],
+   null,null,null,10108),
+],
+heli:[
+ V("Mi-24D","germany","Attack Helicopter",["new"],
+   "The classic Hind D joins Germany — a flying IFV bristling with rockets and ATGMs.",
+   ["12.7 mm YakB-12.7 rotary nose gun","9M17P Falanga-PV ATGMs","S-5 / S-24 rockets","Bombs up to 500 kg","Fast for a heli, big airframe"],
+   null,null,null,10108),
+ V("Mi-28NM — new cockpit","ussr","Cockpit Remodel",["remodel"],
+   "Fully detailed cockpit added in Heavy Cavalry — more beautiful than ever in first-person.",
+   ["Visual remodel — no stat changes"],
+   S+"0_2026/6_June/Heavy_Cavalry/940_mi_28nm_cockpit_d1343c4a2c18015e01f82483b88b7023.jpg",null,null,10108),
+ V("Z-10 / Z-10ME / Z-10A — new cockpits","china","Cockpit Remodel",["remodel"],
+   "All three Z-10 variants received fully detailed cockpits.",
+   ["Visual remodel — no stat changes"],
+   S+"0_2026/6_June/Heavy_Cavalry/Z_10_1_940_1d94bfe84bbe8378546e09ab9a6f7792.jpg",null,null,10108),
+],
+naval:[
+ V("USS North Carolina","usa","Battleship",["new"],
+   "'The Showboat' — deadly guns and good armor for the US bluewater fleet.",
+   ["9 × 406 mm (16-inch) main guns in 3 turrets","20 × 127 mm dual-purpose secondaries","Heavy AA suite (40 mm Bofors, 20 mm Oerlikon)","Thick armored citadel"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_battleship_north_carolina_class_01_60d57f87a0a6c6fb34c5f65ec665e355.jpg",
+   "https://warthunder.com/en/news/10088-development-uss-north-carolina-the-showboat-en",null,10088),
+ V("USS Gridley","usa","Destroyer",["new"],
+   "US destroyer with a heavy torpedo broadside.",
+   ["4 × 127 mm main guns","16 torpedo tubes — huge salvo","AA machine guns"],
+   null,null,null,10108),
+ V("Lorelei","germany","Coastal Vessel",["new"],
+   "New German coastal vessel.",
+   ["Autocannon armament","Fast and small target"],
+   null,null,null,10108),
+ V("Admiral Scheer","germany","Heavy Cruiser · Premium",["new","prem"],
+   "Premium Deutschland-class 'pocket battleship'.",
+   ["6 × 283 mm main guns in 2 triple turrets","8 × 150 mm secondaries","Torpedo tubes","Cruiser speed with battleship-grade guns"],
+   null,null,null,10108),
+ V("Chervona Ukraina","ussr","Light Cruiser",["new"],
+   "Soviet light cruiser for the USSR bluewater fleet.",
+   ["15 × 130 mm main guns","Torpedo tubes","AA gun mounts"],
+   null,null,null,10108),
+ V("HMS Egret","britain","Sloop",["new"],
+   "British sloop — an AA escort specialist.",
+   ["8 × 102 mm dual-purpose guns","Strong AA capability for its size"],
+   null,null,null,10108),
+ V("MTB-523","britain","Torpedo Boat · Premium",["new","prem"],
+   "Premium British motor torpedo boat.",
+   ["Torpedoes + autocannons","Very fast, very fragile"],
+   null,null,null,10108),
+ V("JDS Ujishima (MSC-655)","japan","Minesweeper",["new"],
+   "Japanese coastal minesweeper.",
+   ["Autocannon armament","Coastal support role"],
+   null,null,null,10108),
+ V("MAS 429","italy","Coastal · 76 mm",["new"],
+   "Small early boat with a club — a 76 mm gun capable of hurting much bigger ships.",
+   ["76 mm main gun — rare punch for a boat this size","Machine guns","Tiny, hard-to-hit profile"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_news_mas_class429_cdd47d44df95472fdf2640c13e7b8643.jpg",
+   "https://warthunder.com/en/news/10038-development-mas-429-a-kid-with-a-club-en",null,10038),
+ V("Jean Bart","france","Battleship · Pack",["new","pack"],
+   "France's last battleship — slightly faster reload and better AA than her sisters, but fewer crew.",
+   ["8 × 380 mm main guns in 2 quad turrets (both forward)","Strong dual-purpose AA battery","Faster main gun reload","Premium — boosts French bluewater research"],
+   S+"0_2026/6_June/Heavy_Cavalry/1280x720_01_battleship_richelieu_class_jean_bart_0f27aec44d81a99d6789bac5d43db73a.jpg",
+   "https://warthunder.com/en/news/10023-development-pre-order-jean-bart-the-last-french-battleship-en","VII",10023),
+]};
+
+const FEATURES=[
+ ["Anti-Radiation Missiles & ESM","New ARMs home in on enemy radar emissions (mainly SPAA radars), and the new ESM interface helps with target selection. A long-requested counter to anti-aircraft systems.",S+"0_2026/6_June/Heavy_Cavalry/940x530_rockets_02_234d0f02cb6237c69750c0b67b58ecbf.jpg"],
+ ["Man-in-the-Loop guidance","TV/IR-guided bombs and missiles with a data link can now be retargeted mid-flight — designate a new target in the seeker's view and the autopilot adjusts (e.g. GBU-53 SDB II).",S+"0_2026/6_June/Heavy_Cavalry/940x530_news_gbu_4cf15a654ee54d2f0df975e170b89d9e.jpg"],
+ ["Aiming points for salvo firing","Set up to 10 saved coordinate markers for GNSS-guided weapons, independent of the point of interest. Also usable for navigation and range measuring.",S+"0_2026/6_June/Heavy_Cavalry/2_aiming_points_and_nav_940_bfc0c5864970b38bc5111ec843067b66.jpg"],
+ ["Rewards for crashed aircraft","If an undamaged enemy crashes within 3 km of you (or your chasing missile), you now get the kill credit, Silver Lions, RP and mission score.",S+"0_2026/6_June/Heavy_Cavalry/bf109g6_t3485_News__e7df76460634b16b954015aed2784702.jpg"],
+ ["Arresting gear on ground airfields","Aircraft with arrestor hooks can now catch cables at ground airfields to stop quicker when landing.",null],
+ ["Missile comparison graphs","Compare air-to-air missile trajectories, speed and telemetry side by side. The minimap now shows missile name and velocity on hover.",S+"0_2026/6_June/Heavy_Cavalry/1_940_missile_comp_en_b7afb3ca04318353c2843382ce2cc406.jpg"],
+];
+const BEFORE_AFTER=[
+ ["Ground vehicle textures: DXT5 → BC7",
+  "All tank textures switched to BC7 compression — drag the slider to compare. Way fewer blocky and color-banding artifacts. One-time ~20 GB download (35 GB on ultra).",
+  S+"0_2026/6_June/Heavy_Cavalry/940_tex_comp_before_en_dcc1b4c1166bab5249ea41459874d8b6.jpg",
+  S+"0_2026/6_June/Heavy_Cavalry/940_tex_comp_after_en_af764ad21a3074e9911137ad74246020.jpg"],
+ ["Ambient occlusion rework",
+  "AO maps on all ground vehicles re-rendered physically correctly — tanks no longer turn pitch black in low light.",
+  S+"0_2026/6_June/Heavy_Cavalry/940_ao_comp_before_en_5607f164b7190fc6842c00400775ee8d.jpg",
+  S+"0_2026/6_June/Heavy_Cavalry/940_ao_comp_after_en_f4d5af84535f4eb53e43b3f0a483b15c.jpg"],
+];
+const MAP_REWORKS=[
+ ["Ash River — visual rework","Graphically overhauled, same layout.",S+"0_2026/6_June/Heavy_Cavalry/Ash_River_5_940px_4eca78d92131c83d2e6c0daa58d8e1ad.jpg"],
+ ["Winter Ardennes — visual rework","Stunning new visuals, familiar layout.",S+"0_2026/6_June/Heavy_Cavalry/Ardennes_7_940px_0d94f6d41cdb9dc044d3c791ad06a906.jpg"],
+ ["80+ aircraft: detailed X-ray & damage models","Over 80 vehicles received detailed internal modules and improved damage behavior.",S+"0_2026/6_June/Heavy_Cavalry/940_f15e_xray_617f455855cd88d403b1766efce4729d.jpg"],
+ ["New MFD screens","More authentic multi-function displays on modern jets.",S+"0_2026/6_June/Heavy_Cavalry/F4AGM65_2_940px_a3605bb23cb6c6d09d8419e6e6a6dfa8.jpg"],
+];
+
+/* ================= STATE & RENDERING ================= */
+const TABS=[["ground","Ground"],["air","Aviation"],["heli","Helis"],["naval","Naval"],["features","Features"],["news","News Feed"]];
+const $=s=>document.querySelector(s);
+let cur="ground", sortBy="new", natFilter="all";
+
+function badges(v){
+  let h=v.badges.map(b=>({new:'<span class="b new">New</span>',pack:'<span class="b pack">Pack</span>',
+    prem:'<span class="b prem">Premium</span>',squad:'<span class="b squad">Squadron</span>',
+    remodel:'<span class="b remodel">Remodel</span>'}[b]||"")).join("");
+  if(v.rank)h+=`<span class="b rank">Rank ${v.rank}</span>`;
+  return h;
+}
+const wikiUrl=n=>"https://wiki.warthunder.com/search?query="+encodeURIComponent(n.replace(/\s*\(.*?\)|—.*$/g,"").trim());
+
+function thumb(v,key){
+  if(v.img)return `<div class="thumb"><img src="${v.img}" loading="lazy" alt="${v.name}"
+     onerror="this.parentNode.innerHTML='<div class=ph><div class=ic>${ICON[key]}</div><div class=tx>No image feed</div></div>'"><div class="grad"></div></div>`;
+  return `<div class="thumb"><div class="ph"><div class="ic">${ICON[key]}</div><div class="tx">No official image yet</div></div></div>`;
+}
+function visibleList(key){
+  let list=DATA[key].map((v,i)=>({...v,_i:i}));
+  if(natFilter!=="all")list=list.filter(v=>v.nation===natFilter);
+  const by={new:(a,b)=>b.ord-a.ord||a.name.localeCompare(b.name),
+            old:(a,b)=>a.ord-b.ord||a.name.localeCompare(b.name),
+            az:(a,b)=>a.name.localeCompare(b.name),
+            za:(a,b)=>b.name.localeCompare(a.name),
+            nation:(a,b)=>NATION[a.nation].localeCompare(NATION[b.nation])||a.name.localeCompare(b.name)};
+  return list.sort(by[sortBy]||by.new);
+}
+function renderToolbar(key){
+  const tb=$("#toolbar");
+  if(!DATA[key]){tb.classList.add("hidden");return;}
+  tb.classList.remove("hidden");
+  const nats=[...new Set(DATA[key].map(v=>v.nation))];
+  tb.innerHTML=`
+    <label>Sort</label>
+    <select id="sortSel">
+      <option value="new">Newest announced</option>
+      <option value="old">Oldest announced</option>
+      <option value="nation">By nation</option>
+      <option value="az">Name A–Z</option>
+      <option value="za">Name Z–A</option>
+    </select>
+    <label>Nation</label>
+    <button class="chip ${natFilter==="all"?"on":""}" data-n="all">All</button>
+    ${nats.map(n=>`<button class="chip ${natFilter===n?"on":""}" data-n="${n}">${FLAGS[n]} ${NATION[n]}</button>`).join("")}
+    <span class="count" id="cnt"></span>`;
+  $("#sortSel").value=sortBy;
+  $("#sortSel").onchange=e=>{sortBy=e.target.value;drawGrid(cur);};
+  tb.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
+    natFilter=c.dataset.n;
+    tb.querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x.dataset.n===natFilter));
+    drawGrid(cur);
+  });
+}
+function drawGrid(key){
+  if(!DATA[key])return;
+  const list=visibleList(key);
+  const c=$("#cnt");if(c)c.textContent=list.length+" vehicle"+(list.length===1?"":"s");
+  $("#content").innerHTML=`<div class="grid">`+list.map(v=>`
+   <div class="card" data-i="${v._i}" data-k="${key}">
+    ${thumb(v,key)}
+    <div class="card-h">
+      <span class="flag">${FLAGS[v.nation]}</span>
+      <div><div class="vname">${v.name}</div><div class="vsub">${NATION[v.nation]} · ${v.cls}</div></div>
+      <div class="badges">${badges(v)}</div>
+    </div>
+    <div class="info">
+      <p>${v.desc||""}</p>
+      ${v.arm?`<div class="armt">Armament &amp; Kit</div><ul class="arm">${v.arm.map(a=>`<li>${a}</li>`).join("")}</ul>`:""}
+      <div class="stats" id="st-${key}-${v._i}"><span class="brnote">Loading BR…</span></div>
+      <div class="links">
+        ${v.dev?`<a href="${v.dev}" target="_blank">Dev Blog ↗</a>`:""}
+        <a href="${wikiUrl(v.name)}" target="_blank">Full Wiki Stats ↗</a>
+      </div>
+    </div>
+   </div>`).join("")+`</div>
+   <div class="note">Click a card for armament details + live BR lookup. Exact pen/velocity figures live on each vehicle's Wiki stat card — one click away.</div>`;
+}
+function baSlider(i,[title,blurb,before,after]){
+  return `<div class="feat">
+    <div class="ba" id="ba${i}">
+      <img src="${after}" alt="after">
+      <div class="top" style="width:50%"><img src="${before}" alt="before"></div>
+      <div class="bar" style="left:50%"></div><div class="knob" style="left:50%">⇄</div>
+      <span class="lb before">Before</span><span class="lb after">After</span>
+      <input type="range" min="0" max="100" value="50">
+    </div>
+    <div class="fbody"><h3>${title}</h3><p>${blurb}</p></div>
+  </div>`;
+}
+function initBA(){
+  document.querySelectorAll(".ba").forEach(ba=>{
+    const inp=ba.querySelector("input");
+    inp.oninput=()=>{const p=inp.value+"%";
+      ba.querySelector(".top").style.width=p;
+      ba.querySelector(".bar").style.left=p;
+      ba.querySelector(".knob").style.left=p;};
+  });
+}
+function renderFeatures(){
+  $("#content").innerHTML=
+    `<div class="sec-title">Remodels — Before / After</div>`+
+    BEFORE_AFTER.map((b,i)=>baSlider(i,b)).join("")+
+    `<div class="sec-title">Visual Reworks</div>`+
+    MAP_REWORKS.map(f=>`<div class="feat">${f[2]?`<img class="fimg" loading="lazy" src="${f[2]}" onerror="this.remove()">`:""}<div class="fbody"><h3>${f[0]}</h3><p>${f[1]}</p></div></div>`).join("")+
+    `<div class="sec-title">New Mechanics</div>`+
+    FEATURES.map(f=>`<div class="feat">${f[2]?`<img class="fimg" loading="lazy" src="${f[2]}" onerror="this.remove()">`:""}<div class="fbody"><h3>${f[0]}</h3><p>${f[1]}</p></div></div>`).join("");
+  initBA();
+}
+function renderNews(){
+  $("#content").innerHTML=`<div class="sec-title">Latest Official News</div>
+  <div class="newslist" id="newslist"><div class="note">Fetching latest news…</div></div>
+  <div class="note">Source: <a style="color:var(--amber)" href="https://warthunder.com/en/news" target="_blank">warthunder.com/en/news ↗</a></div>`;
+  loadNews();
+}
+function show(key){
+  cur=key;
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.k===key));
+  renderToolbar(key);
+  if(key==="features")renderFeatures();
+  else if(key==="news")renderNews();
+  else drawGrid(key);
+}
+$("#tabs").innerHTML=TABS.map(([k,l])=>{
+  const cnt=DATA[k]?`<span class="cnt">${DATA[k].length}</span>`:"";
+  return `<button data-k="${k}">${l}${cnt}</button>`;
+}).join("");
+$("#tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(b)show(b.dataset.k);});
+document.addEventListener("click",e=>{
+  const c=e.target.closest(".card");
+  if(!c||e.target.closest("a")||e.target.closest("input"))return;
+  c.classList.toggle("open");
+  if(c.classList.contains("open"))loadBR(c.dataset.k,+c.dataset.i);
+});
+
+/* ================= LIVE DATA ================= */
+/* 1) data/live.json — refreshed weekly by the GitHub Action (works when hosted) */
+/* 2) CORS-proxy fetch straight from warthunder.com (works anywhere, incl. local file) */
+let __ld;
+async function localData(){
+  if(__ld!==undefined)return __ld;
+  try{const r=await fetch("data/live.json?t="+Date.now(),{signal:AbortSignal.timeout(6000)});
+      __ld=r.ok?await r.json():null;}catch(e){__ld=null;}
+  return __ld;
+}
+const PROXIES=["https://api.allorigins.win/raw?url=","https://corsproxy.io/?url="];
+async function proxyFetch(url){
+  for(const p of PROXIES){
+    try{
+      const r=await fetch(p+encodeURIComponent(url),{signal:AbortSignal.timeout(9000)});
+      if(r.ok){const t=await r.text();if(t&&t.length>200)return t;}
+    }catch(e){}
+  }
+  return null;
+}
+async function loadNews(){
+  const el=$("#newslist");if(!el)return;
+  const ld=await localData();
+  if(ld&&ld.news&&ld.news.length){
+    el.innerHTML=ld.news.slice(0,15).map(n=>`<a class="newsitem" href="${n.url}" target="_blank"><span class="d">▸</span><span class="t">${n.title}</span></a>`).join("");
+    setStatus(true,ld.updated);return;
+  }
+  const html=await proxyFetch("https://warthunder.com/en/news");
+  if(!html){el.innerHTML=`<div class="note">Live fetch blocked — showing cached links.</div>`+cachedNews();return;}
+  try{
+    const doc=new DOMParser().parseFromString(html,"text/html");
+    const seen=new Set(),items=[];
+    doc.querySelectorAll('a[href*="/en/news/"]').forEach(a=>{
+      const href=a.getAttribute("href")||"";
+      const m=href.match(/\/en\/news\/(\d+)[^"]*/);
+      const txt=(a.textContent||"").replace(/\s+/g," ").trim();
+      if(m&&txt.length>12&&!seen.has(m[1])){seen.add(m[1]);
+        items.push({url:"https://warthunder.com"+href.replace(/^https?:\/\/[^/]+/,""),t:txt});}
+    });
+    if(!items.length)throw 0;
+    el.innerHTML=items.slice(0,15).map(n=>`<a class="newsitem" href="${n.url}" target="_blank"><span class="d">▸</span><span class="t">${n.t}</span></a>`).join("");
+    setStatus(true);
+  }catch(e){el.innerHTML=`<div class="note">Couldn't parse live news — cached links below.</div>`+cachedNews();}
+}
+function cachedNews(){
+  const c=[["Meet the “Heavy Cavalry” Major Update!","https://warthunder.com/en/news/10108-meet-the-heavy-cavalry-major-update-en","24 Jun 2026"],
+   ["Heavy Cavalry — full changelog","https://warthunder.com/en/game/changelog/current/1862","24 Jun 2026"],
+   ["Flight Model and Missile Autopilot Improvements","https://warthunder.com/en/news/10111-development-flight-model-and-missile-autopilot-improvements-en","23 Jun 2026"],
+   ["Leopard 2RI: In the Indonesian Jungle","https://warthunder.com/en/news/10105-development-leopard-2ri-in-the-indonesian-jungle-en","22 Jun 2026"]];
+  return c.map(n=>`<a class="newsitem" href="${n[1]}" target="_blank"><span class="d">${n[2]}</span><span class="t">${n[0]}</span></a>`).join("");
+}
+const norm=s=>(typeof s==="string"?s:"").toLowerCase().replace(/[^a-z0-9]/g,"");
+async function loadBR(key,i){
+  const v=DATA[key][i],el=document.getElementById(`st-${key}-${i}`);
+  if(!el||el.dataset.done)return; el.dataset.done=1;
+  const q=v.name.replace(/\s*\(.*?\)|—.*$/g,"").trim(), nq=norm(q);
+  const urls=[`https://wtvehiclesapi.duckdns.org/api/vehicles/search/${encodeURIComponent(q)}`,
+              `https://wtvehiclesapi.duckdns.org/api/vehicles?search=${encodeURIComponent(q)}&limit=10`];
+  for(const u of urls){
+    try{
+      const r=await fetch(u,{signal:AbortSignal.timeout(8000)});
+      if(!r.ok)continue;
+      let j=await r.json(); if(!Array.isArray(j))j=j.results||j.vehicles||j.data||[j];
+      /* strict name match — only accept a result that actually looks like this vehicle */
+      let best=null,bs=0;
+      for(const x of j){
+        if(!x||!(x.arcade_br||x.realistic_br||x.br||x.arcadeBr))continue;
+        const cands=[x.identifier,x.name,x.localized_name,x.wiki_name,x.display_name].map(norm).filter(c=>c.length>=4);
+        let s=0;
+        for(const c of cands){
+          if(c===nq)s=Math.max(s,1000);
+          else if(nq.includes(c)||c.includes(nq))s=Math.max(s,Math.min(c.length,nq.length));
+        }
+        if(s>bs){bs=s;best=x;}
+      }
+      if(best&&bs>=5){
+        const ab=best.arcade_br??best.arcadeBr??best.br, rb=best.realistic_br??best.realisticBr, sb=best.simulator_br??best.simulatorBr;
+        el.innerHTML=[["Arcade BR",ab],["Realistic BR",rb],["Sim BR",sb]].filter(x=>x[1]!=null)
+          .map(x=>`<div class="stat"><div class="k">${x[0]}</div><div class="v">${x[1]}</div></div>`).join("")
+          +(best.era||best.rank?`<div class="stat"><div class="k">Rank</div><div class="v">${best.era||best.rank}</div></div>`:"")
+          +`<span class="brnote" style="align-self:center">via datamine — may lag a patch</span>`;
+        return;
+      }
+    }catch(e){}
+  }
+  el.innerHTML=`<span class="brnote">No confirmed BR data yet (new vehicles take a while to hit the datamine) — the Wiki link below has the full stat card.</span>`;
+}
+/* self-check: is there a newer major update than the one baked into this file? */
+const BAKED_CHANGELOG_ID=1862;
+async function checkNewPatch(){
+  const ld=await localData();
+  let newest=null;
+  if(ld&&ld.latest_changelog){setStatus(true,ld.updated);newest=ld.latest_changelog;}
+  else{
+    const html=await proxyFetch("https://warthunder.com/en/game/changelog");
+    setStatus(!!html);
+    if(!html)return;
+    try{
+      const doc=new DOMParser().parseFromString(html,"text/html");
+      doc.querySelectorAll('a[href*="/game/changelog/"]').forEach(a=>{
+        const m=(a.getAttribute("href")||"").match(/\/game\/changelog\/(?:current\/)?(\d+)/);
+        if(!m)return;
+        const id=+m[1], title=(a.textContent||"").replace(/\s+/g," ").trim();
+        if(!newest||id>newest.id)newest={id,title,url:"https://warthunder.com/en/game/changelog/current/"+id};
+      });
+    }catch(e){return;}
+  }
+  if(newest&&newest.id>BAKED_CHANGELOG_ID){
+    $("#patchAlert").innerHTML=`<span style="color:var(--green);font-weight:700">◉ NEWER UPDATE DETECTED:</span>
+      <a style="color:var(--amber)" href="${newest.url}" target="_blank">${newest.title||"open changelog"} ↗</a>
+      <span style="color:var(--dim)">— ask Claude to refresh this page's vehicle cards</span>`;
+  }
+}
+function setStatus(live,when){
+  $("#dot").className="dot "+(live?"live":"off");
+  $("#statusTxt").textContent=live?("LIVE FEED"+(when?" · refreshed "+when.slice(0,10):"")):"CACHED · snapshot 9 Jul 2026";
+}
+/* boot */
+show("ground");
+checkNewPatch();
+</script>
+</body>
+</html>
