@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WT Update Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Saira+Stencil+One&family=Special+Elite&family=Playfair+Display:ital,wght@0,700;1,400&family=VT323&family=Rubik+Mono+One&display=swap" rel="stylesheet">
+<style>
+/* ================= BASE (theme-agnostic structure, driven by CSS vars) ================= */
+:root{
+  --bg:#12150f; --panel:#1a1f14; --panel2:#22281a; --line:#3a4429;
+  --acc:#ffb648; --acc2:#8fbf5a; --txt:#d8dcc8; --dim:#8a9375;
+  --hf:'Saira Stencil One',sans-serif; --bf:'Chakra Petch',sans-serif;
+  --rad:0px; --bstyle:solid;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font-family:var(--bf);min-height:100vh;transition:background .3s,color .3s}
+.wrap{max-width:1150px;margin:0 auto;padding:24px 16px 70px;position:relative;z-index:1}
+a{color:var(--acc)}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:14px;border:1px var(--bstyle) var(--line);
+  background:var(--panel);padding:16px 20px;border-radius:var(--rad)}
+h1{font-family:var(--hf);font-size:24px;letter-spacing:3px;color:var(--acc);text-transform:uppercase}
+.sub{font-size:12px;color:var(--dim);letter-spacing:2px;text-transform:uppercase}
+.hdr-r{margin-left:auto;display:flex;align-items:center;gap:12px}
+.status{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:1px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--dim)}
+.dot.live{background:var(--acc2);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.gear{background:var(--panel2);border:1px var(--bstyle) var(--line);color:var(--acc);font-size:18px;
+  width:40px;height:40px;cursor:pointer;border-radius:var(--rad);transition:.2s}
+.gear:hover{transform:rotate(45deg);border-color:var(--acc)}
+.banner{margin-top:16px;border:1px var(--bstyle) var(--line);background:var(--panel);padding:16px 20px;
+  display:flex;flex-wrap:wrap;gap:16px;align-items:center;border-radius:var(--rad)}
+.banner .patch{font-family:var(--hf);font-size:32px;color:var(--txt);letter-spacing:2px;line-height:1}
+.banner .meta{font-size:12px;color:var(--dim)}
+.btn{margin-left:auto;background:var(--acc);color:var(--bg);border:none;font-family:var(--bf);font-weight:700;
+  letter-spacing:1px;padding:10px 16px;cursor:pointer;text-transform:uppercase;font-size:12px;text-decoration:none;border-radius:var(--rad)}
+.btn.ghost{background:transparent;color:var(--acc);border:1px var(--bstyle) var(--acc)}
+nav.tabs{display:flex;gap:6px;margin-top:18px;flex-wrap:wrap}
+nav.tabs button{flex:1;min-width:104px;background:var(--panel);border:1px var(--bstyle) var(--line);color:var(--dim);
+  font-family:var(--bf);font-weight:600;letter-spacing:2px;padding:11px 8px;cursor:pointer;text-transform:uppercase;font-size:12px;border-radius:var(--rad)}
+nav.tabs button.on{background:var(--acc);color:var(--bg);border-color:var(--acc)}
+nav.tabs button:hover{color:var(--acc)}
+nav.tabs button.on:hover{color:var(--bg)}
+nav.tabs .cnt{opacity:.75;margin-left:4px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;border:1px var(--bstyle) var(--line);
+  background:var(--panel);padding:10px 12px;border-radius:var(--rad)}
+.toolbar.hidden{display:none}
+.toolbar label{font-size:10px;letter-spacing:2px;color:var(--dim);text-transform:uppercase}
+.toolbar select{background:var(--panel2);color:var(--txt);border:1px var(--bstyle) var(--line);font-family:var(--bf);
+  font-size:12px;padding:7px 10px;cursor:pointer;border-radius:var(--rad)}
+.chip{background:var(--panel2);border:1px var(--bstyle) var(--line);color:var(--dim);font-family:var(--bf);font-size:11px;
+  padding:6px 10px;cursor:pointer;text-transform:uppercase;border-radius:var(--rad)}
+.chip.on{border-color:var(--acc);color:var(--acc)}
+.count{margin-left:auto;font-size:11px;color:var(--dim)}
+#content{margin-top:14px}
+/* badges */
+.b{font-size:9px;letter-spacing:1px;padding:2px 6px;text-transform:uppercase;font-weight:700;border-radius:var(--rad)}
+.b.new{background:var(--acc2);color:var(--bg)}
+.b.pack{background:var(--acc);color:var(--bg)}
+.b.prem{background:#6aa7c9;color:#0d1c26}
+.b.squad{background:#a08cc9;color:#1c1329}
+.b.remodel{background:#e05c4a;color:#2b0f0a}
+.b.rank{background:transparent;border:1px solid var(--dim);color:var(--txt)}
+/* ---- card building blocks (used by several layouts) ---- */
+.card{background:var(--panel);border:1px var(--bstyle) var(--line);cursor:pointer;position:relative;border-radius:var(--rad);overflow:hidden}
+.thumb{height:140px;overflow:hidden;position:relative;background:repeating-linear-gradient(45deg,var(--panel2) 0 12px,var(--panel) 12px 24px)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--dim)}
+.thumb .ph .ic{font-size:38px;opacity:.7}.thumb .ph .tx{font-size:9px;letter-spacing:2px;text-transform:uppercase}
+.card-h{padding:11px 13px;display:flex;align-items:center;gap:10px}
+.flag{font-size:19px}
+.vname{font-weight:700;font-size:14px;color:var(--txt)}
+.vsub{font-size:11px;color:var(--dim);letter-spacing:1px;text-transform:uppercase}
+.badges{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+/* LAYOUT: grid */
+.lay-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+/* LAYOUT: rows */
+.lay-rows .card{display:flex;align-items:center;margin-bottom:9px}
+.lay-rows .thumb{height:64px;width:110px;flex:none}
+.lay-rows .card-h{flex:1}
+/* LAYOUT: carousel */
+.lay-car{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:14px}
+.lay-car .card{min-width:262px;scroll-snap-align:start}
+/* LAYOUT: columns */
+.lay-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:760px){.lay-cols{grid-template-columns:1fr}}
+.lay-cols .colh{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);padding:6px 4px 10px}
+.lay-cols .colh b{color:var(--acc)}
+.lay-cols .card{margin-bottom:8px}
+.lay-cols .thumb{height:92px}
+/* LAYOUT: hex */
+.lay-hex{display:flex;flex-wrap:wrap;justify-content:center}
+.lay-hex .hx{width:186px;height:206px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+  position:relative;margin:-24px 4px 0;cursor:pointer;background:var(--panel2);transition:.2s}
+.lay-hex .hx:hover{transform:scale(1.07);z-index:3;filter:brightness(1.2)}
+.lay-hex .hx img{width:100%;height:100%;object-fit:cover;opacity:.55}
+.lay-hex .ov{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:14px 20px;background:linear-gradient(transparent 30%,rgba(0,0,0,.85))}
+.lay-hex .nm{color:#fff;font-weight:700;font-size:12.5px}
+.lay-hex .mt{color:var(--acc);font-size:10px;text-transform:uppercase}
+/* LAYOUT: flip */
+.lay-flip{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.lay-flip .fc{perspective:800px;height:300px;cursor:pointer}
+.lay-flip .in{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .55s}
+.lay-flip .fc:hover .in{transform:rotateY(180deg)}
+.lay-flip .fa,.lay-flip .fb{position:absolute;inset:0;backface-visibility:hidden;border-radius:max(var(--rad),10px);overflow:hidden;border:2px var(--bstyle) var(--acc);background:var(--panel)}
+.lay-flip .fa img{width:100%;height:58%;object-fit:cover}
+.lay-flip .fa .cb{padding:12px}
+.lay-flip .hint{position:absolute;bottom:8px;right:12px;font-size:10px;color:var(--acc)}
+.lay-flip .fb{transform:rotateY(180deg);padding:14px;overflow:auto}
+.lay-flip .fb h4{color:var(--acc);font-family:var(--hf);font-size:14px;margin-bottom:8px}
+.lay-flip .fb ul{list-style:none;font-size:11.5px;line-height:1.6}
+.lay-flip .fb li::before{content:"▹ ";color:var(--acc)}
+.lay-flip .fb .more{margin-top:8px;font-size:11px;color:var(--dim)}
+/* classic inline expand (one open at a time) */
+.card .info{display:none;border-top:1px dashed var(--line);padding:12px 14px;font-size:13px;line-height:1.55;cursor:auto;width:100%}
+.card.open .info{display:block}
+.card.open{border-color:var(--acc)}
+.lay-rows .card{flex-wrap:wrap}
+/* ---- detail modal / drawer ---- */
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:90;display:none;backdrop-filter:blur(3px)}
+.ovl.show{display:block;animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0}}
+.dossier{position:fixed;z-index:95;background:var(--panel);border:1px var(--bstyle) var(--acc);color:var(--txt);
+  overflow:auto;border-radius:var(--rad);display:none}
+.dossier.show{display:block}
+body.det-modal .dossier,body.det-inline .dossier{left:50%;top:50%;transform:translate(-50%,-50%);width:min(680px,94vw);max-height:88vh;animation:popIn .25s}
+@keyframes popIn{from{opacity:0;transform:translate(-50%,-46%) scale(.96)}}
+body.det-drawer .dossier{right:0;top:0;bottom:0;width:min(460px,94vw);animation:drawIn .28s}
+@keyframes drawIn{from{transform:translateX(100%)}}
+.dossier .dimg{width:100%;height:220px;object-fit:cover;display:block}
+.dossier .dbody{padding:18px 20px 24px}
+.dossier .dh{display:flex;align-items:center;gap:10px}
+.dossier h2{font-family:var(--hf);color:var(--acc);font-size:20px;letter-spacing:1px}
+.dossier .x{margin-left:auto;background:none;border:1px var(--bstyle) var(--line);color:var(--txt);width:32px;height:32px;cursor:pointer;font-size:15px;border-radius:var(--rad)}
+.dossier .x:hover{border-color:var(--acc);color:var(--acc)}
+.dossier p{font-size:13px;line-height:1.6;margin:10px 0}
+.armt{margin:12px 0 4px;font-size:10px;letter-spacing:2px;color:var(--acc);text-transform:uppercase}
+ul.arm{list-style:none;margin:4px 0 8px}
+ul.arm li{padding:4px 0 4px 16px;position:relative;font-size:12.5px;border-bottom:1px dotted var(--line)}
+ul.arm li::before{content:"▹";position:absolute;left:0;color:var(--acc)}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.stat{border:1px var(--bstyle) var(--line);background:var(--panel2);padding:6px 10px;min-width:86px;border-radius:var(--rad)}
+.stat .k{font-size:9px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase}
+.stat .v{font-size:16px;font-weight:700;color:var(--acc)}
+.links a{text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase;margin-right:14px}
+.brnote{font-size:11px;color:var(--dim);font-style:italic}
+/* features/news sections */
+.sec-title{font-family:var(--hf);color:var(--acc);letter-spacing:2px;font-size:16px;margin:22px 0 4px;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+.sec-title::after{content:"";flex:1;height:1px;background:var(--line)}
+.feat{border:1px var(--bstyle) var(--line);background:var(--panel);margin-top:10px;overflow:hidden;border-radius:var(--rad)}
+.feat .fbody{padding:14px 16px}
+.feat h3{color:var(--txt);font-size:14px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+.feat p{font-size:13px;line-height:1.55}
+.feat img.fimg{width:100%;max-height:260px;object-fit:cover;display:block}
+.ba{position:relative;user-select:none;overflow:hidden}
+.ba img{width:100%;display:block}
+.ba .top{position:absolute;inset:0;overflow:hidden}
+.ba .top img{position:absolute;inset:0;height:100%;width:auto;min-width:100%;object-fit:cover}
+.ba input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:ew-resize;margin:0}
+.ba .bar{position:absolute;top:0;bottom:0;width:3px;background:var(--acc);pointer-events:none}
+.ba .knob{position:absolute;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;background:var(--acc);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;pointer-events:none;font-size:13px}
+.ba .lb{position:absolute;top:10px;font-size:10px;letter-spacing:2px;padding:3px 8px;background:rgba(0,0,0,.65);color:#fff;text-transform:uppercase;pointer-events:none}
+.ba .lb.before{left:10px}.ba .lb.after{right:10px}
+.newslist{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.newsitem{border:1px var(--bstyle) var(--line);background:var(--panel);padding:12px 14px;display:flex;gap:12px;align-items:baseline;text-decoration:none;border-radius:var(--rad)}
+.newsitem:hover{border-color:var(--acc)}
+.newsitem .d{font-size:11px;color:var(--dim);white-space:nowrap}
+.newsitem .t{color:var(--txt);font-size:14px}
+.note{margin-top:12px;font-size:12px;color:var(--dim);border-left:3px solid var(--acc);padding:8px 12px;background:var(--panel);border-radius:var(--rad)}
+footer{margin-top:36px;font-size:11px;color:var(--dim);text-align:center}
+/* ================= SETTINGS PANEL ================= */
+.sovl{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:none}
+.sovl.show{display:block}
+.spanel{position:fixed;right:0;top:0;bottom:0;width:min(430px,95vw);background:var(--panel);border-left:2px solid var(--acc);
+  z-index:110;transform:translateX(100%);transition:transform .3s;overflow-y:auto;padding:20px}
+.spanel.show{transform:none}
+.spanel h2{font-family:var(--hf);color:var(--acc);letter-spacing:2px;font-size:18px;margin-bottom:4px}
+.spanel .shint{font-size:11px;color:var(--dim);margin-bottom:14px}
+.sgroup{margin-bottom:20px}
+.sgroup h3{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:5px;margin-bottom:9px}
+.sgroup h3 b{color:var(--acc)}
+.swatches{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.sw{height:52px;border-radius:6px;cursor:pointer;border:2px solid transparent;position:relative;overflow:hidden;font-size:0}
+.sw.on{border-color:#fff;box-shadow:0 0 0 2px var(--acc)}
+.sw i{position:absolute;left:5px;bottom:3px;font-style:normal;font-size:9px;color:#fff;text-shadow:0 1px 3px #000;font-family:'Chakra Petch'}
+.sw u{position:absolute;right:4px;top:3px;font-size:10px;color:#fff;text-decoration:none;text-shadow:0 1px 2px #000}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{background:var(--panel2);border:1px solid var(--line);color:var(--dim);font-family:var(--bf);font-size:11.5px;
+  padding:7px 11px;cursor:pointer;border-radius:6px}
+.opt.on{border-color:var(--acc);color:var(--acc);background:transparent}
+.sreset{width:100%;margin-top:6px;background:transparent;border:1px dashed var(--line);color:var(--dim);padding:9px;cursor:pointer;font-family:var(--bf);border-radius:6px}
+.sreset:hover{color:#e05c4a;border-color:#e05c4a}
+/* ================= 20 THEMES (skins only — layout & animations are separate settings) ================= */
+/* 1 Olive HUD = :root defaults. Extra flavor: */
+body.th-1 .card::before{content:"";position:absolute;top:-1px;left:-1px;width:11px;height:11px;border-top:2px solid var(--acc);border-left:2px solid var(--acc);z-index:2}
+body.th-1 .card::after{content:"";position:absolute;bottom:-1px;right:-1px;width:11px;height:11px;border-bottom:2px solid var(--acc);border-right:2px solid var(--acc);z-index:2}
+body.th-2{--bg:#000;--panel:#0a0a0a;--panel2:#141414;--line:#3a1515;--acc:#e33;--acc2:#e33;--txt:#eee;--dim:#844;--hf:'Rubik Mono One',monospace}
+body.th-3{--bg:#0d2137;--panel:#0f2740;--panel2:#143050;--line:#9cf;--acc:#cde8ff;--acc2:#9cf;--txt:#e8f4ff;--dim:#8fc4ee;--bstyle:dashed;--hf:'Chakra Petch',sans-serif}
+body.th-3{background-image:linear-gradient(rgba(120,180,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(120,180,255,.07) 1px,transparent 1px);background-size:24px 24px}
+body.th-3 .thumb img{filter:sepia(1) hue-rotate(170deg) saturate(2) brightness(.9)}
+body.th-4{--bg:#1b1d21;--panel:#2c2e33;--panel2:#3a3d42;--line:#57595e;--acc:#ffb648;--acc2:#9be26a;--txt:#eee;--dim:#9a9da3;--rad:6px;--hf:'Saira Stencil One'}
+body.th-4 .card{background:linear-gradient(160deg,#3a3d42,#232529 60%,#2c2e33);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 5px 12px rgba(0,0,0,.45)}
+body.th-5{--bg:#0a0018;--panel:#170028;--panel2:#22083a;--line:#f0f;--acc:#0ff;--acc2:#f0f;--txt:#fff;--dim:#b7f;--rad:10px;--hf:'Rubik Mono One'}
+body.th-5{background:linear-gradient(#14001f,#0a0018)}
+body.th-5 .card{box-shadow:0 0 13px rgba(255,0,255,.22)}
+body.th-5 .card:hover{box-shadow:0 0 24px rgba(0,255,255,.45)}
+body.th-5 h1{text-shadow:0 0 12px #0ff;animation:flicker 4s infinite}
+@keyframes flicker{0%,92%,100%{opacity:1}93%{opacity:.4}95%{opacity:.9}97%{opacity:.5}}
+body.th-6{--bg:#c9b98a;--panel:#f4ecd8;--panel2:#eadfc2;--line:#a5936a;--acc:#a22;--acc2:#7a2;--txt:#332;--dim:#776;--hf:'Special Elite',serif;--bf:'Special Elite',serif}
+body.th-6 .card{box-shadow:3px 4px 10px rgba(60,40,10,.35)}
+body.th-6 .lay-grid .card:nth-child(odd){transform:rotate(-1.2deg)}
+body.th-6 .lay-grid .card:nth-child(even){transform:rotate(1deg)}
+body.th-6 .lay-grid .card:hover{transform:rotate(0) scale(1.03);z-index:2}
+body.th-6 .thumb img{filter:sepia(.5)}
+body.th-7{--bg:#020d02;--panel:#041504;--panel2:#062206;--line:#0a5a0a;--acc:#0f0;--acc2:#5f5;--txt:#8f8;--dim:#3a3;--hf:'VT323',monospace;--bf:'VT323',monospace}
+body.th-7::after{content:"";position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,255,0,.05) 2px 4px);pointer-events:none;z-index:200}
+body.th-7 .thumb img{filter:grayscale(1) sepia(1) hue-rotate(70deg) saturate(3) brightness(.85)}
+body.th-8{--bg:#f4f7f9;--panel:#fff;--panel2:#e9eff4;--line:#d5dee6;--acc:#246;--acc2:#4a8;--txt:#123;--dim:#89a;--rad:12px;--hf:'Chakra Petch',sans-serif}
+body.th-8 .card{box-shadow:0 4px 14px rgba(40,70,110,.09)}
+body.th-8 .card:hover{box-shadow:0 12px 28px rgba(40,70,110,.16)}
+body.th-9{--bg:#d9c49a;--panel:#e9dcbc;--panel2:#dfd0a8;--line:#5c451c;--acc:#a3341c;--acc2:#5c451c;--txt:#3a2c14;--dim:#7a6136;--hf:'Saira Stencil One'}
+body.th-9{background-image:radial-gradient(rgba(90,60,20,.13) 1.5px,transparent 1.5px);background-size:14px 14px}
+body.th-9 .card{border-width:3px;box-shadow:5px 5px 0 #5c451c}
+body.th-9 .card:hover{transform:translate(-3px,-3px);box-shadow:8px 8px 0 #5c451c}
+body.th-9 .thumb img{filter:sepia(.4)}
+body.th-10{--bg:#101720;--panel:#182230;--panel2:#0b111a;--line:#2a3a50;--acc:#e8b70c;--acc2:#e8b70c;--txt:#fff;--dim:#7d92ad;--hf:'Rubik Mono One'}
+body.th-10 header{background:repeating-linear-gradient(45deg,rgba(232,183,12,.14) 0 18px,transparent 18px 36px),var(--panel)}
+body.th-11{--bg:#f6f2e8;--panel:#fffdf6;--panel2:#efe9da;--line:#1c1a14;--acc:#a33;--acc2:#583;--txt:#1c1a14;--dim:#877;--hf:'Playfair Display',serif}
+body.th-11 h1,body.th-11 .banner .patch,body.th-11 .sec-title{text-transform:none;letter-spacing:0}
+body.th-12{--bg:#000;--panel:#020802;--panel2:#041004;--line:#0a0;--acc:#0f0;--acc2:#0f0;--txt:#0c0;--dim:#060;--hf:'VT323',monospace;--bf:'VT323',monospace}
+body.th-12 .vname,body.th-12 .newsitem .t{font-size:17px}
+body.th-13{--bg:#223;--panel:rgba(255,255,255,.12);--panel2:rgba(255,255,255,.09);--line:rgba(255,255,255,.35);--acc:#ffd98a;--acc2:#9be26a;--txt:#fff;--dim:rgba(255,255,255,.68);--rad:16px;--hf:'Chakra Petch'}
+body.th-13{background:url(https://staticfiles.warthunder.com/upload/image/0_2026/6_June/Heavy_Cavalry/940x530_04_m1a2c_39e91c461acb4ab8d6a3a1472127152b.jpg) center/cover fixed}
+body.th-13 .card,body.th-13 header,body.th-13 .banner,body.th-13 .toolbar,body.th-13 .feat,body.th-13 .newsitem,body.th-13 .dossier,body.th-13 .spanel{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+body.th-14{--bg:#171106;--panel:#241a08;--panel2:#31230c;--line:#6b5320;--acc:#ffb648;--acc2:#ff7b3d;--txt:#ffe6b0;--dim:#a8862f;--rad:12px;--hf:'Rubik Mono One'}
+body.th-14 .card{border-width:2px;border-color:var(--acc)}
+body.th-15{--bg:#141109;--panel:#1e1b12;--panel2:#292416;--line:#6b6242;--acc:#d8cfa8;--acc2:#a89a68;--txt:#efe6c2;--dim:#a89a68;--hf:'Special Elite'}
+body.th-15 .thumb img{filter:sepia(.35)}
+body.th-16{--bg:#0d1117;--panel:#161b22;--panel2:#1f2630;--line:#2d3640;--acc:#58a6ff;--acc2:#3fb950;--txt:#e6edf3;--dim:#7d8790;--rad:9px;--hf:'Chakra Petch'}
+body.th-17{--bg:#10140e;--panel:#1d2416;--panel2:#28311d;--line:#3e4a2c;--acc:#9fbf5a;--acc2:#ffb648;--txt:#dfe8c8;--dim:#7c8a5e;--hf:'Saira Stencil One'}
+body.th-18{--bg:#05070c;--panel:#0a121f;--panel2:#0e1a2c;--line:#1e3550;--acc:#4fc3f7;--acc2:#3fb950;--txt:#cfe6ff;--dim:#587494;--hf:'VT323',monospace}
+body.th-18 .vname{font-family:'VT323';font-size:17px}
+body.th-19{--bg:#e8ddc7;--panel:#1a1512;--panel2:#2a221c;--line:#1a1512;--acc:#c03a2b;--acc2:#c03a2b;--txt:#e8ddc7;--dim:#b9a98a;--hf:'Rubik Mono One'}
+body.th-19 h1,body.th-19 .sec-title{color:#1a1512}
+body.th-19 .banner .patch{color:#e8ddc7}
+body.th-19 .thumb img{filter:grayscale(.85) contrast(1.3)}
+body.th-19 .lay-grid .card{transform:skewY(-1deg)}
+body.th-19 .lay-grid .card:hover{transform:skewY(0)}
+body.th-20{--bg:#020610;--panel:rgba(0,40,70,.4);--panel2:rgba(0,50,90,.35);--line:rgba(0,220,255,.5);--acc:#7fdfff;--acc2:#7fdfff;--txt:#dff6ff;--dim:#59b6d8;--hf:'Chakra Petch'}
+body.th-20::before{content:"";position:fixed;left:-25%;right:-25%;bottom:-8%;height:50%;
+  background:linear-gradient(rgba(0,220,255,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(0,220,255,.12) 1px,transparent 1px);
+  background-size:42px 42px;transform:perspective(300px) rotateX(60deg);pointer-events:none;z-index:0}
+body.th-20 h1{text-shadow:0 0 16px rgba(0,220,255,.8)}
+body.th-20 .card{box-shadow:0 0 20px rgba(0,220,255,.13),inset 0 0 26px rgba(0,220,255,.05)}
+body.th-20 .thumb img{filter:hue-rotate(160deg) saturate(1.25);opacity:.88}
+/* ================= HOVER EFFECT SETTINGS ================= */
+body.hov-glow .card:hover{border-color:var(--acc);box-shadow:0 0 18px color-mix(in srgb,var(--acc) 30%,transparent)}
+body.hov-lift .card{transition:transform .18s,box-shadow .18s}
+body.hov-lift .card:hover{transform:translateY(-5px);box-shadow:0 14px 26px rgba(0,0,0,.4)}
+body.hov-tilt .card{transition:transform .15s}
+body.hov-tilt .card:hover{transform:perspective(700px) rotateX(4deg) rotateY(-4deg) scale(1.02)}
+body.hov-press .card{transition:.12s}
+body.hov-press .card:hover{transform:translate(-3px,-3px);box-shadow:6px 6px 0 var(--acc)}
+/* ================= LOAD ANIMATION SETTINGS (items entering) ================= */
+body.ld-fade .ai{animation:aFade .45s backwards}
+body.ld-slide .ai{animation:aSlide .45s backwards}
+body.ld-blip .ai{animation:aBlip .35s backwards}
+body.ld-drop .ai{animation:aDrop .5s backwards}
+@keyframes aFade{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes aSlide{from{opacity:0;transform:translateX(-38px)}to{opacity:1;transform:none}}
+@keyframes aBlip{0%{opacity:0;transform:scale(.5)}70%{transform:scale(1.06)}100%{opacity:1;transform:scale(1)}}
+@keyframes aDrop{from{opacity:0;transform:translateY(-30px) rotate(-2deg)}to{opacity:1;transform:none}}
+/* ================= TAB-SWITCH ANIMATION SETTINGS (#content entering) ================= */
+body.sw-fade #content.enter{animation:cFade .3s both}
+body.sw-slide #content.enter{animation:cSlide .32s both}
+body.sw-zoom #content.enter{animation:cZoom .3s both}
+body.sw-flip #content.enter{animation:cFlip .42s both;transform-origin:top}
+@keyframes cFade{from{opacity:0}}
+@keyframes cSlide{from{opacity:0;transform:translateX(46px)}to{opacity:1;transform:none}}
+@keyframes cZoom{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+@keyframes cFlip{from{opacity:0;transform:perspective(900px) rotateX(-9deg)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body class="th-1 hov-glow ld-fade sw-fade det-modal">
+<div class="wrap">
+  <header>
+    <div>
+      <h1>⟨ WT Update Tracker ⟩</h1>
+      <div class="sub">War Thunder · Patch Intel Console</div>
+    </div>
+    <div class="hdr-r">
+      <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">CACHED</span></div>
+      <button class="gear" id="gearBtn" title="Customize UI">⚙</button>
+    </div>
+  </header>
+  <div class="banner">
+    <div>
+      <div class="sub">Current Major Update</div>
+      <div class="patch">HEAVY CAVALRY</div>
+      <div class="meta">Released 24 June 2026 · 40+ new vehicles · ARMs &amp; ESM · Man-in-the-loop · BC7 textures</div>
+      <div class="meta" id="patchAlert"></div>
+    </div>
+    <a class="btn" href="https://warthunder.com/en/game/changelog/current/1862" target="_blank">Full Changelog ↗</a>
+    <a class="btn ghost" href="https://warthunder.com/en/news/?tags=Development" target="_blank">Dev Blogs ↗</a>
+  </div>
+  <nav class="tabs" id="tabs"></nav>
+  <div id="toolbar" class="toolbar hidden"></div>
+  <div id="content"></div>
+  <footer>
+    Unofficial fan tool · data &amp; images from <a href="https://warthunder.com/en/news" target="_blank">warthunder.com</a> ·
+    BR data via community <a href="https://github.com/Sgambe33/WarThunder-Vehicles-API" target="_blank">WT Vehicles API</a> · not affiliated with Gaijin
+  </footer>
+</div>
+<!-- detail dossier -->
+<div class="ovl" id="ovl"></div>
+<div class="dossier" id="dossier"></div>
+<!-- settings -->
+<div class="sovl" id="sovl"></div>
+<div class="spanel" id="spanel">
+  <h2>⚙ CUSTOMIZE</h2>
+  <div class="shint">Everything applies instantly (live preview) and is saved in this browser. Mix any theme with any layout and any animations.</div>
+  <div class="sgroup"><h3>Theme · <b id="thName"></b></h3><div class="swatches" id="thSw"></div></div>
+  <div class="sgroup"><h3>Vehicle layout · <b id="layName"></b></h3><div class="opts" id="layOpts"></div></div>
+  <div class="sgroup"><h3>Detail card opens as · <b id="detName"></b></h3><div class="opts" id="detOpts"></div></div>
+  <div class="sgroup"><h3>Cards load-in animation · <b id="ldName"></b></h3><div class="opts" id="ldOpts"></div></div>
+  <div class="sgroup"><h3>Tab-switch animation · <b id="swName"></b></h3><div class="opts" id="swOpts"></div></div>
+  <div class="sgroup"><h3>Card hover effect · <b id="hovName"></b></h3><div class="opts" id="hovOpts"></div></div>
+  <button class="sreset" id="sreset">↺ Reset to default (Olive HUD)</button>
+</div>
+<script>
+/* ================= BAKED DATA (snapshot: 9 Jul 2026) ================= */
+const S="https://staticfiles.warthunder.com/upload/image/";
+const FLAGS={usa:"🇺🇸",germany:"🇩🇪",ussr:"🇷🇺",britain:"🇬🇧",japan:"🇯🇵",china:"🇨🇳",italy:"🇮🇹",france:"🇫🇷",sweden:"🇸🇪",israel:"🇮🇱"};
+const NATION={usa:"USA",germany:"Germany",ussr:"USSR",britain:"Great Britain",japan:"Japan",china:"China",italy:"Italy",france:"France",sweden:"Sweden",israel:"Israel"};
+const ICON={ground:"🛡️",air:"✈️",heli:"🚁",naval:"⚓"};
+
+/* ord = announcement order (dev blog number; higher = announced later). */
+const V=(name,nation,cls,badges,desc,arm,img,dev,rank,ord)=>({name,nation,cls,badges,desc,arm,img,dev,rank,ord:ord||10108});
+
+const DATA={
+ground:[
+ V("M1A2 SEPv3","usa","Main Battle Tank",["new"],
+   "The most modern US Abrams. Turret cheeks are virtually invulnerable at medium-long range, plus researchable TUSK package with curved ARAT-2 ERA plates on hull and turret sides.",
+   ["120 mm M256 smoothbore cannon","M829A3 APFSDS — improved effectiveness vs ERA","XM1147 HEF round with programmable fuse","TUSK add-on armor: ARAT-2 ERA vs shaped charges","Modern FCS, thermal sights"],
+   S+"0_2026/6_June/Abrams/940x530_01_m1a2c_08eb6abfdd37f1a3839db746491982a4.jpg",
+   "https://warthunder.com/en/news/10066-development-m1a2c-abrams-heavy-cavalry-en","VIII",10066),
+ V("M1A2 (Trophy-HV)","usa","Main Battle Tank",["new"],
+   "SEP V2 Abrams enhanced with the Trophy-HV hard-kill Active Protection System — intercepts incoming ATGMs and rockets before they hit.",
+   ["120 mm M256 smoothbore cannon","M829A3 APFSDS round","Trophy-HV hard-kill APS","Add-on ERA protection"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_04_m1a2c_39e91c461acb4ab8d6a3a1472127152b.jpg",
+   "https://warthunder.com/en/news/10066-development-m1a2c-abrams-heavy-cavalry-en","VIII",10066),
+ V("M60A1 Predator","usa","MBT · Pack",["new","pack"],
+   "Pre-order pack M60A1 with add-on protection for the US ground tree.",
+   ["105 mm M68 rifled cannon","APFSDS / HEAT-FS / APDS selection","Add-on armor package"],
+   null,"https://warthunder.com/en/news/10048-development-pre-orders-m60a1-predator-en",null,10048),
+ V("Hummel","germany","SPG · 150 mm",["new"],
+   "The classic WW2 self-propelled howitzer returns to the German tree — a formidable and fun lineup filler.",
+   ["150 mm sFH 18 howitzer","Fires HE, HEAT, APHE and SAP","HEAT pen ≈100 mm at any distance","Huge HE payload — overpressure machine","Open compartment — watch for MGs and arty"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_hummel_02_fe5d6a6bc21e9c195d02ff79e9da4ad6.jpg",
+   "https://warthunder.com/en/news/10080-development-hummel-a-lot-of-buzz-en",null,10080),
+ V("Puma u14","germany","IFV · Pack",["new","pack"],
+   "Premium Puma with pallets strapped to the side and camo netting — a look inspired by Panzergrenadierbataillon 33's 2022 exercises.",
+   ["30 mm MK30-2/ABM autocannon","Airburst (ABM) ammo vs helis and light vehicles","APFSDS belts for light armor","Spall liners and heavy IFV protection"],
+   S+"0_2026/6_June/Heavy_Cavalry/news_940_ger_schutzenpanzer_puma_vjtf_mod_c82ac65214637577dd1996277411145a.jpeg",
+   "https://warthunder.com/en/news/10035-development-pre-orders-puma-u14-en","VII",10035),
+ V("T-90M (Arena-M)","ussr","Main Battle Tank",["new"],
+   "T-90M fitted with the Arena-M active protection system for the USSR top ranks — hard-kill interception of incoming projectiles.",
+   ["125 mm 2A46M-5 smoothbore cannon","3BM60 'Svinets-2' APFSDS","Arena-M hard-kill APS","Relikt ERA coverage"],
+   null,null,null,10108),
+ V("M1A1 (Australia)","britain","MBT · Squadron",["new","squad"],
+   "Australian M1A1 AIM as a squadron vehicle — Australian vehicles now find their home in the British tree, like India and South Africa before.",
+   ["120 mm M256 smoothbore cannon","KE-W APFSDS rounds","Excellent mobility and gun handling"],
+   S+"0_2026/6_June/Abrams/940x530_03_m1a2c_7db00816602aed2e65ddb7ed9b3cf1d4.jpg",
+   "https://warthunder.com/en/news/10066-development-m1a2c-abrams-heavy-cavalry-en",null,10066),
+ V("M1A2 (Australia)","britain","Main Battle Tank",["new"],
+   "Researchable Australian M1A2 for Britain's top tier — same enhanced turret protection as the US SEPv3.",
+   ["120 mm M256 smoothbore cannon","KE-W A2 tungsten APFSDS (slightly below M829A3)","TUSK ERA package","Enhanced turret cheek armor"],
+   S+"0_2026/6_June/Abrams/940x530_04_m1a2c_dca1a3ec0fbfc2005f06b88fb037ccd6.jpg",
+   "https://warthunder.com/en/news/10066-development-m1a2c-abrams-heavy-cavalry-en","VIII",10066),
+ V("Leopard 2RI (Indonesia)","japan","Main Battle Tank",["new"],
+   "Indonesian Leopard 2A4 upgrade joining Japan's tree — modernized protection and FCS.",
+   ["120 mm L/44 smoothbore cannon","Modern APFSDS rounds","Add-on composite armor package"],
+   null,"https://warthunder.com/en/news/10105-development-leopard-2ri-in-the-indonesian-jungle-en",null,10105),
+ V("PGZ88","china","SPAA · Radar",["new"],
+   "Radar-equipped SPAA with twin belt-fed 37 mm guns — a handy addition to several Chinese lineups.",
+   ["Twin 37 mm belt-fed autocannons","Search radar for target acquisition","HEI-T / AP-T belts — can shred light vehicles"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_news_pgz_88_bd22e4c687ccad003d3fafe1728d2d1b.jpg",
+   "https://warthunder.com/en/news/10028-development-pgz88-jack-of-all-trades-en",null,10028),
+ V("Palmaria","italy","SPH · 155 mm",["new"],
+   "155 mm howitzer on an OF-40 chassis — gives Italian rank IV lineups serious HE slinging power.",
+   ["155 mm howitzer, autoloaded","Big HE shells — overpressure kills","HEAT rounds for direct-fire duels","OF-40 chassis mobility"],
+   S+"0_2026/6_June/Heavy_Cavalry/940_06_palmaria_d2401804ad05de537d7222f26b83516a.jpg",
+   "https://warthunder.com/en/news/10043-development-palmaria-the-island-sized-slingshot-en","IV",10043),
+ V("Leopard 1A5BE (Belgium)","france","Main Battle Tank",["new"],
+   "Belgian Leopard 1A5 added to the French tree.",
+   ["105 mm L7A3 rifled cannon","APFSDS / HEAT-FS rounds","Thermal sights, stabilized gun"],
+   null,null,null,10108),
+ V("NOMADS (Norway)","sweden","SPAA / SAM",["new"],
+   "Norwegian NOMADS mobile air-defense system for Sweden.",
+   ["IRIS-T IR-guided surface-to-air missiles","High off-boresight, flare-resistant seeker","Radar target acquisition"],
+   null,null,null,10108),
+ V("Hunter AFV (Singapore)","israel","AFV · Spike-LR",["new"],
+   "Singapore enters the fray! Fast forwards AND backwards, letting it scoot around and be a nuisance.",
+   ["30 mm Bushmaster II Mk44 autocannon","APFSDS belts for light armor","Spike-LR fire-and-forget ATGMs (tandem HEAT — defeats ERA)","Remote turret, thermal optics","High forward/reverse speed"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_news_hunter_afv_9f98392963b91cad91ce68a70e09c47d.jpg",
+   "https://warthunder.com/en/news/10036-development-hunter-afv-singaporean-hunter-en",null,10036),
+],
+air:[
+ V("F-101C Voodoo","usa","Jet Fighter",["new"],
+   "Excellent top speed — one of the fastest at its rank — but travels light.",
+   ["4 × 20 mm cannons","No suspended ordnance","Outstanding acceleration and top speed"],
+   S+"0_2026/6_June/Heavy_Cavalry/940_f_101c_07_1aeb4c71550c24334b786afcd6890de6.jpg",
+   "https://warthunder.com/en/news/10102-development-f-101c-voodoo-the-charm-of-speed-en",null,10102),
+ V("F-14D Super Tomcat","usa","Jet Fighter · Pack",["new","pack"],
+   "Premium Tomcat, deadly in both Air and Ground battles.",
+   ["AIM-54C+ Phoenix long-range missiles","AIM-9M all-aspect IR missiles","JDAM guided bombs","20 mm M61 Vulcan cannon","Great flight performance"],
+   S+"0_2026/6_June/Heavy_Cavalry/news_940_f_14d_cbb6c5c896d0091350a874831c982688.jpg",
+   "https://warthunder.com/en/news/10065-development-pre-order-f-14d-super-tomcat-en","VIII",10065),
+ V("Fw 189 C","germany","Attacker · Premium",["new","prem"],
+   "'The ugliest duckling' — premium German twin-boom oddity.",
+   ["Forward-firing cannon armament","Defensive rear gunner","Light bomb load"],
+   null,"https://warthunder.com/en/news/10104-development-fw-189-s-en",null,10104),
+ V("IA.58A Pucara (Argentina)","germany","Attacker · Pack",["new","pack"],
+   "Argentine twin-turboprop attacker — slow, but an excellent ground pounder in Ground RB.",
+   ["2 × 20 mm Hispano cannons","4 × 7.62 mm machine guns","Wide bomb and rocket options"],
+   S+"0_2026/6_June/Heavy_Cavalry/940_pucara_07_cb99f5c335888e1bf06b533c8b9f2908.jpg",
+   "https://warthunder.com/en/news/10100-development-ia-58a-pucara-argentinas-fortress-en",null,10100),
+ V("Yak-130","ussr","Combat Trainer",["new"],
+   "Small, nimble combat trainer with good ordnance options for its class.",
+   ["Gun pod armament","IR air-to-air missiles","Bombs and rocket pods"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_yak_130_m346_05_dffe8b06df5e674ccb07d6c79fddd71f.jpg",
+   "https://warthunder.com/en/news/10086-development-yak-130-and-m-346fa-a-common-beginning-en",null,10086),
+ V("J-22M1A (Serbia)","ussr","Attacker · Pack",["new","pack"],
+   "Serbian Orao pack attacker for the USSR tree.",
+   ["2 × 23 mm cannons","Bombs and rocket pods","Good low-altitude handling"],
+   null,"https://warthunder.com/en/news/10084-development-pre-order-j-22m1a-serbian-eagle-en",null,10084),
+ V("MiG-29KR (9-41R)","ussr","Jet Fighter",["new"],
+   "Modernized naval Fulcrum variant for the USSR top tier.",
+   ["30 mm GSh-30-1 cannon","R-73 and R-77 air-to-air missiles","Guided bombs for ground strikes"],
+   null,null,null,10108),
+ V("Washington B.Mk.I","britain","Bomber",["new"],
+   "B-29 Superfortress in RAF service — fills the gap between the Lincoln and the Canberra.",
+   ["Massive bomb load","Remote-controlled 12.7 mm turrets all around","High service ceiling"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_01_washington_b1_d038352b9d14786b5768685abd02e11f.jpg",
+   "https://warthunder.com/en/news/10053-development-washington-b1-a-friend-in-need-en",null,10053),
+ V("Welkin F.Mk.I","britain","High-Alt Fighter",["new"],
+   "Westland's high-altitude interceptor with a huge wingspan joins Britain.",
+   ["4 × 20 mm Hispano cannons","Pressurized cockpit — thrives up high","Poor low-alt agility"],
+   null,"https://warthunder.com/en/news/10031-development-welkin-f-mk-i-and-fmki-late-from-heavens-vault-en",null,10031),
+ V("L-39ZA/ART Albatros (Thailand)","japan","Combat Trainer",["new"],
+   "Thai Albatros trainer/light attacker added to Japan.",
+   ["23 mm GSh-23L cannon pod","Bombs and rocket pods","IR missiles"],
+   null,null,null,10108),
+ V("JH-7A2","china","Strike Aircraft",["new"],
+   "Upgraded 'Flying Leopard' strike fighter for China.",
+   ["23 mm twin cannon","Guided bombs and long-range AGMs","Anti-radiation missile capable (new ARM mechanic)"],
+   null,null,null,10108),
+ V("F-16V","china","Jet Fighter",["new"],
+   "The Viper — a top-tier multirole addition for China.",
+   ["20 mm M61 Vulcan cannon","Modern IR + radar air-to-air missiles","AESA radar, guided bombs"],
+   null,null,null,10108),
+ V("M-346FA","italy","Combat Trainer",["new"],
+   "Italian sibling of the Yak-130 — same origin, same nimble handling.",
+   ["Gun pod armament","IR air-to-air missiles","Bombs and rocket pods"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_yak_130_m346_05_dffe8b06df5e674ccb07d6c79fddd71f.jpg",
+   "https://warthunder.com/en/news/10086-development-yak-130-and-m-346fa-a-common-beginning-en",null,10086),
+ V("F-16AM (Netherlands)","france","Jet Fighter · Pack",["new","pack"],
+   "Dutch F-16AM pack aircraft for France.",
+   ["20 mm M61 Vulcan cannon","AIM-9 and AMRAAM missiles","Guided bomb options"],
+   null,null,null,10108),
+ V("AJS37 (Early)","sweden","Strike Aircraft · Pack",["new","pack"],
+   "Early AJS37 Viggen pack for Sweden.",
+   ["30 mm ADEN gun pods","RB-05 / RB-75 guided missiles","Bombs and rockets, high low-alt speed"],
+   null,null,null,10108),
+ V("MiG-21 2000","israel","Jet Fighter · Squadron",["new","squad"],
+   "Israeli-modernized MiG-21 as a squadron vehicle.",
+   ["23 mm GSh-23L cannon","Python 3 IR missiles","Modernized avionics"],
+   null,null,null,10108),
+],
+heli:[
+ V("Mi-24D","germany","Attack Helicopter",["new"],
+   "The classic Hind D joins Germany — a flying IFV bristling with rockets and ATGMs.",
+   ["12.7 mm YakB-12.7 rotary nose gun","9M17P Falanga-PV ATGMs","S-5 / S-24 rockets","Bombs up to 500 kg","Fast for a heli, big airframe"],
+   null,null,null,10108),
+ V("Mi-28NM — new cockpit","ussr","Cockpit Remodel",["remodel"],
+   "Fully detailed cockpit added in Heavy Cavalry — more beautiful than ever in first-person.",
+   ["Visual remodel — no stat changes"],
+   S+"0_2026/6_June/Heavy_Cavalry/940_mi_28nm_cockpit_d1343c4a2c18015e01f82483b88b7023.jpg",null,null,10108),
+ V("Z-10 / Z-10ME / Z-10A — new cockpits","china","Cockpit Remodel",["remodel"],
+   "All three Z-10 variants received fully detailed cockpits.",
+   ["Visual remodel — no stat changes"],
+   S+"0_2026/6_June/Heavy_Cavalry/Z_10_1_940_1d94bfe84bbe8378546e09ab9a6f7792.jpg",null,null,10108),
+],
+naval:[
+ V("USS North Carolina","usa","Battleship",["new"],
+   "'The Showboat' — deadly guns and good armor for the US bluewater fleet.",
+   ["9 × 406 mm (16-inch) main guns in 3 turrets","20 × 127 mm dual-purpose secondaries","Heavy AA suite (40 mm Bofors, 20 mm Oerlikon)","Thick armored citadel"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_battleship_north_carolina_class_01_60d57f87a0a6c6fb34c5f65ec665e355.jpg",
+   "https://warthunder.com/en/news/10088-development-uss-north-carolina-the-showboat-en",null,10088),
+ V("USS Gridley","usa","Destroyer",["new"],
+   "US destroyer with a heavy torpedo broadside.",
+   ["4 × 127 mm main guns","16 torpedo tubes — huge salvo","AA machine guns"],
+   null,null,null,10108),
+ V("Lorelei","germany","Coastal Vessel",["new"],
+   "New German coastal vessel.",
+   ["Autocannon armament","Fast and small target"],
+   null,null,null,10108),
+ V("Admiral Scheer","germany","Heavy Cruiser · Premium",["new","prem"],
+   "Premium Deutschland-class 'pocket battleship'.",
+   ["6 × 283 mm main guns in 2 triple turrets","8 × 150 mm secondaries","Torpedo tubes","Cruiser speed with battleship-grade guns"],
+   null,null,null,10108),
+ V("Chervona Ukraina","ussr","Light Cruiser",["new"],
+   "Soviet light cruiser for the USSR bluewater fleet.",
+   ["15 × 130 mm main guns","Torpedo tubes","AA gun mounts"],
+   null,null,null,10108),
+ V("HMS Egret","britain","Sloop",["new"],
+   "British sloop — an AA escort specialist.",
+   ["8 × 102 mm dual-purpose guns","Strong AA capability for its size"],
+   null,null,null,10108),
+ V("MTB-523","britain","Torpedo Boat · Premium",["new","prem"],
+   "Premium British motor torpedo boat.",
+   ["Torpedoes + autocannons","Very fast, very fragile"],
+   null,null,null,10108),
+ V("JDS Ujishima (MSC-655)","japan","Minesweeper",["new"],
+   "Japanese coastal minesweeper.",
+   ["Autocannon armament","Coastal support role"],
+   null,null,null,10108),
+ V("MAS 429","italy","Coastal · 76 mm",["new"],
+   "Small early boat with a club — a 76 mm gun capable of hurting much bigger ships.",
+   ["76 mm main gun — rare punch for a boat this size","Machine guns","Tiny, hard-to-hit profile"],
+   S+"0_2026/6_June/Heavy_Cavalry/940x530_news_mas_class429_cdd47d44df95472fdf2640c13e7b8643.jpg",
+   "https://warthunder.com/en/news/10038-development-mas-429-a-kid-with-a-club-en",null,10038),
+ V("Jean Bart","france","Battleship · Pack",["new","pack"],
+   "France's last battleship — slightly faster reload and better AA than her sisters, but fewer crew.",
+   ["8 × 380 mm main guns in 2 quad turrets (both forward)","Strong dual-purpose AA battery","Faster main gun reload","Premium — boosts French bluewater research"],
+   S+"0_2026/6_June/Heavy_Cavalry/1280x720_01_battleship_richelieu_class_jean_bart_0f27aec44d81a99d6789bac5d43db73a.jpg",
+   "https://warthunder.com/en/news/10023-development-pre-order-jean-bart-the-last-french-battleship-en","VII",10023),
+]};
+
+const FEATURES=[
+ ["Anti-Radiation Missiles & ESM","New ARMs home in on enemy radar emissions (mainly SPAA radars), and the new ESM interface helps with target selection.",S+"0_2026/6_June/Heavy_Cavalry/940x530_rockets_02_234d0f02cb6237c69750c0b67b58ecbf.jpg"],
+ ["Man-in-the-Loop guidance","TV/IR-guided bombs and missiles with a data link can now be retargeted mid-flight (e.g. GBU-53 SDB II).",S+"0_2026/6_June/Heavy_Cavalry/940x530_news_gbu_4cf15a654ee54d2f0df975e170b89d9e.jpg"],
+ ["Aiming points for salvo firing","Up to 10 saved coordinate markers for GNSS-guided weapons, independent of the point of interest.",S+"0_2026/6_June/Heavy_Cavalry/2_aiming_points_and_nav_940_bfc0c5864970b38bc5111ec843067b66.jpg"],
+ ["Rewards for crashed aircraft","If an undamaged enemy crashes within 3 km of you (or your chasing missile), you get the kill credit and rewards.",S+"0_2026/6_June/Heavy_Cavalry/bf109g6_t3485_News__e7df76460634b16b954015aed2784702.jpg"],
+ ["Arresting gear on ground airfields","Aircraft with arrestor hooks can catch cables at ground airfields to stop quicker.",null],
+ ["Missile comparison graphs","Compare missile trajectories, speed and telemetry side by side; minimap shows missile name/velocity on hover.",S+"0_2026/6_June/Heavy_Cavalry/1_940_missile_comp_en_b7afb3ca04318353c2843382ce2cc406.jpg"],
+];
+const BEFORE_AFTER=[
+ ["Ground vehicle textures: DXT5 → BC7","All tank textures switched to BC7 compression — drag the slider. One-time ~20 GB download (35 GB ultra).",
+  S+"0_2026/6_June/Heavy_Cavalry/940_tex_comp_before_en_dcc1b4c1166bab5249ea41459874d8b6.jpg",
+  S+"0_2026/6_June/Heavy_Cavalry/940_tex_comp_after_en_af764ad21a3074e9911137ad74246020.jpg"],
+ ["Ambient occlusion rework","AO maps re-rendered physically correctly — tanks no longer turn pitch black in low light.",
+  S+"0_2026/6_June/Heavy_Cavalry/940_ao_comp_before_en_5607f164b7190fc6842c00400775ee8d.jpg",
+  S+"0_2026/6_June/Heavy_Cavalry/940_ao_comp_after_en_f4d5af84535f4eb53e43b3f0a483b15c.jpg"],
+];
+const MAP_REWORKS=[
+ ["Ash River — visual rework","Graphically overhauled, same layout.",S+"0_2026/6_June/Heavy_Cavalry/Ash_River_5_940px_4eca78d92131c83d2e6c0daa58d8e1ad.jpg"],
+ ["Winter Ardennes — visual rework","Stunning new visuals, familiar layout.",S+"0_2026/6_June/Heavy_Cavalry/Ardennes_7_940px_0d94f6d41cdb9dc044d3c791ad06a906.jpg"],
+ ["80+ aircraft: detailed X-ray & damage models","Detailed internal modules and improved damage behavior.",S+"0_2026/6_June/Heavy_Cavalry/940_f15e_xray_617f455855cd88d403b1766efce4729d.jpg"],
+ ["New MFD screens","More authentic multi-function displays on modern jets.",S+"0_2026/6_June/Heavy_Cavalry/F4AGM65_2_940px_a3605bb23cb6c6d09d8419e6e6a6dfa8.jpg"],
+];
+
+/* ================= SETTINGS ================= */
+const THEMES=[[1,"Olive HUD","#1a1f14","#ffb648"],[2,"Night Ops","#000","#e33"],[3,"Blueprint","#0d2137","#9cf"],
+ [4,"Hangar Steel","#2c2e33","#ffb648"],[5,"Arcade Neon","#170028","#0ff"],[6,"Paper Dossier","#f4ecd8","#a22"],
+ [7,"Radar CRT","#041504","#0f0"],[8,"Arctic Minimal","#f4f7f9","#246"],[9,"Desert Stencil","#e9dcbc","#a3341c"],
+ [10,"Carrier Deck","#182230","#e8b70c"],[11,"Front Page","#fffdf6","#a33"],[12,"Green Terminal","#020802","#0f0"],
+ [13,"Frosted Glass","#556","#ffd98a"],[14,"Battle Gold","#241a08","#ffb648"],[15,"War Diary","#1e1b12","#d8cfa8"],
+ [16,"Ops Board","#161b22","#58a6ff"],[17,"Hex Moss","#1d2416","#9fbf5a"],[18,"Cockpit MFD","#0a121f","#4fc3f7"],
+ [19,"Propaganda","#c03a2b","#1a1512"],[20,"Hologram","#032c46","#7fdfff"]];
+const LAYOUTS=[["grid","Grid cards"],["rows","List rows"],["car","Carousel"],["cols","Columns"],["hex","Hex tiles"],["flip","Flip cards"]];
+const DETAILS=[["inline","Expand in card (classic)"],["modal","Center pop-up"],["drawer","Side drawer"]];
+const LOADS=[["fade","Fade up"],["slide","Slide in"],["blip","Radar blip"],["drop","Drop down"],["none","None"]];
+const SWITCHES=[["fade","Fade"],["slide","Slide"],["zoom","Zoom"],["flip","Flip down"],["none","None"]];
+const HOVERS=[["glow","Glow"],["lift","Lift up"],["tilt","3D tilt"],["press","Hard press"],["none","None"]];
+const DEF={th:1,lay:"grid",det:"inline",ld:"fade",sw:"fade",hov:"glow"};
+let SET={...DEF};
+try{SET={...DEF,...JSON.parse(localStorage.getItem("wtSettings")||"{}")}}catch(e){}
+function applySet(){
+  document.body.className=`th-${SET.th} hov-${SET.hov} ld-${SET.ld} sw-${SET.sw} det-${SET.det}`;
+  localStorage.setItem("wtSettings",JSON.stringify(SET));
+  syncPanel();
+}
+/* ================= APP STATE ================= */
+const TABS=[["ground","Ground"],["air","Aviation"],["heli","Helis"],["naval","Naval"],["features","Features"],["news","News Feed"]];
+const $=s=>document.querySelector(s);
+let cur="ground", sortBy="new", natFilter="all";
+const badges=v=>{let h=v.badges.map(b=>({new:'<span class="b new">New</span>',pack:'<span class="b pack">Pack</span>',prem:'<span class="b prem">Premium</span>',squad:'<span class="b squad">Squadron</span>',remodel:'<span class="b remodel">Remodel</span>'}[b]||"")).join("");if(v.rank)h+=`<span class="b rank">Rank ${v.rank}</span>`;return h;};
+const wikiSearch=n=>"https://www.google.com/search?q="+encodeURIComponent("war thunder wiki "+n.replace(/\s*\(.*?\)|—.*$/g,"").trim());
+const wikiHref=(v,b)=>(b&&b.ident)?("https://wiki.warthunder.com/unit/"+b.ident):wikiSearch(v.name);
+function brHtml(b,ld){
+  if(b&&(b.ab!=null||b.rb!=null||b.sb!=null)){
+    return [["Arcade BR",b.ab],["Realistic BR",b.rb],["Sim BR",b.sb]].filter(x=>x[1]!=null)
+      .map(x=>`<div class="stat"><div class="k">${x[0]}</div><div class="v">${x[1]}</div></div>`).join("")
+      +(b.rank?`<div class="stat"><div class="k">Rank</div><div class="v">${b.rank}</div></div>`:"")
+      +`<span class="brnote" style="align-self:center">datamine · ${ld&&ld.updated?ld.updated.slice(0,10):""}</span>`;
+  }
+  return `<span class="brnote">No confirmed BR in the datamine yet — brand-new vehicles take a little while. The Wiki link has the full stat card.</span>`;
+}
+const thumb=(v,key,h)=>v.img?`<div class="thumb"${h?` style="height:${h}px"`:""}><img src="${v.img}" loading="lazy" alt=""></div>`
+ :`<div class="thumb"${h?` style="height:${h}px"`:""}><div class="ph"><div class="ic">${ICON[key]}</div><div class="tx">No official image yet</div></div></div>`;
+function visibleList(key){
+  let list=DATA[key].map((v,i)=>({...v,_i:i}));
+  if(natFilter!=="all")list=list.filter(v=>v.nation===natFilter);
+  const by={new:(a,b)=>b.ord-a.ord||a.name.localeCompare(b.name),old:(a,b)=>a.ord-b.ord||a.name.localeCompare(b.name),
+    az:(a,b)=>a.name.localeCompare(b.name),za:(a,b)=>b.name.localeCompare(a.name),
+    nation:(a,b)=>NATION[a.nation].localeCompare(NATION[b.nation])||a.name.localeCompare(b.name)};
+  return list.sort(by[sortBy]||by.new);
+}
+/* ---------- vehicle layout renderers (all share the dossier for details) ---------- */
+const cardH=v=>`<div class="card-h"><span class="flag">${FLAGS[v.nation]}</span>
+  <div><div class="vname">${v.name}</div><div class="vsub">${NATION[v.nation]} · ${v.cls}</div></div>
+  <div class="badges">${badges(v)}</div></div>`;
+const R={
+ grid:(list,key)=>`<div class="lay-grid">`+list.map((v,i)=>`<div class="card ai" data-i="${v._i}" data-k="${key}" style="animation-delay:${Math.min(i*.06,.7)}s">${thumb(v,key)}${cardH(v)}</div>`).join("")+`</div>`,
+ rows:(list,key)=>`<div class="lay-rows">`+list.map((v,i)=>`<div class="card ai" data-i="${v._i}" data-k="${key}" style="animation-delay:${Math.min(i*.05,.6)}s">${thumb(v,key)}${cardH(v)}</div>`).join("")+`</div>`,
+ car:(list,key)=>`<div class="lay-car">`+list.map((v,i)=>`<div class="card ai" data-i="${v._i}" data-k="${key}" style="animation-delay:${Math.min(i*.05,.5)}s">${thumb(v,key)}${cardH(v)}</div>`).join("")+`</div><div class="note">Swipe / scroll sideways →</div>`,
+ cols:(list,key)=>{
+   const g=[["Researchable",v=>!v.badges.some(b=>["pack","prem","squad","remodel"].includes(b))],
+            ["Premium & Packs",v=>v.badges.includes("pack")||v.badges.includes("prem")],
+            ["Squadron & Remodels",v=>v.badges.includes("squad")||v.badges.includes("remodel")]];
+   return `<div class="lay-cols">`+g.map(([t,f])=>{const vs=list.filter(f);
+     return `<div><div class="colh">${t} · <b>${vs.length}</b></div>`+vs.map((v,i)=>`<div class="card ai" data-i="${v._i}" data-k="${key}" style="animation-delay:${Math.min(i*.06,.6)}s">${thumb(v,key)}${cardH(v)}</div>`).join("")+`</div>`;}).join("")+`</div>`;},
+ hex:(list,key)=>`<div class="lay-hex">`+list.map((v,i)=>`<div class="hx ai" data-i="${v._i}" data-k="${key}" style="animation-delay:${Math.min(i*.05,.6)}s">${v.img?`<img src="${v.img}" loading="lazy">`:""}<div class="ov"><div class="nm">${v.name}</div><div class="mt">${NATION[v.nation]} · ${v.cls}</div></div></div>`).join("")+`</div><div class="note">Click a tile for the full dossier.</div>`,
+ flip:(list,key)=>`<div class="lay-flip">`+list.map((v,i)=>`<div class="fc ai" data-i="${v._i}" data-k="${key}" style="animation-delay:${Math.min(i*.05,.6)}s"><div class="in">
+   <div class="fa">${thumb(v,key)}<div class="cb"><div class="vname">${v.name}</div><div class="vsub">${NATION[v.nation]} · ${v.cls}</div></div><div class="hint">HOVER ⟳ · CLICK FOR MORE</div></div>
+   <div class="fb"><h4>${v.name}</h4><ul>${(v.arm||[]).slice(0,4).map(a=>`<li>${a}</li>`).join("")}</ul><div class="more">Click for full dossier + BR</div></div>
+  </div></div>`).join("")+`</div>`,
+};
+function drawGrid(key){
+  if(!DATA[key])return;
+  const list=visibleList(key);
+  const c=$("#cnt");if(c)c.textContent=list.length+" vehicle"+(list.length===1?"":"s");
+  setContent(R[SET.lay](list,key));
+}
+function setContent(html){
+  const el=$("#content");
+  el.classList.remove("enter");void el.offsetWidth;
+  el.innerHTML=html;
+  el.classList.add("enter");
+}
+/* ---------- dossier ---------- */
+async function openDossier(key,i){
+  const v=DATA[key][i];
+  const d=$("#dossier");
+  d.innerHTML=`${v.img?`<img class="dimg" src="${v.img}">`:""}
+   <div class="dbody">
+    <div class="dh"><span class="flag" style="font-size:24px">${FLAGS[v.nation]}</span><h2>${v.name}</h2><button class="x" id="dx">✕</button></div>
+    <div class="vsub">${NATION[v.nation]} · ${v.cls}</div>
+    <div style="margin-top:6px">${badges(v)}</div>
+    <p>${v.desc||""}</p>
+    ${v.arm?`<div class="armt">Armament &amp; Kit</div><ul class="arm">${v.arm.map(a=>`<li>${a}</li>`).join("")}</ul>`:""}
+    <div class="stats" id="dstats"><span class="brnote">Loading BR…</span></div>
+    <div class="links">${v.dev?`<a href="${v.dev}" target="_blank">Dev Blog ↗</a>`:""}<a id="dwiki" href="${wikiSearch(v.name)}" target="_blank">Full Wiki Stats ↗</a></div>
+   </div>`;
+  $("#ovl").classList.add("show");d.classList.add("show");
+  $("#dx").onclick=closeDossier;
+  const ld=await localData();
+  const b=ld&&ld.brs&&ld.brs[v.name];
+  const el=$("#dstats"),wk=$("#dwiki");
+  if(wk)wk.href=wikiHref(v,b);
+  if(el)el.innerHTML=brHtml(b,ld);
+}
+function closeDossier(){$("#ovl").classList.remove("show");$("#dossier").classList.remove("show");}
+$("#ovl").addEventListener("click",closeDossier);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeDossier();closeSettings();}});
+document.addEventListener("click",e=>{
+  const c=e.target.closest("[data-i][data-k]");
+  if(!c||e.target.closest("a")||e.target.closest(".info"))return;
+  const key=c.dataset.k,i=+c.dataset.i;
+  if(SET.det==="inline"&&c.classList.contains("card")){
+    if(c.classList.contains("open")){c.classList.remove("open");return;}
+    document.querySelectorAll(".card.open").forEach(x=>x.classList.remove("open"));
+    openInline(c,key,i);
+  }else{
+    openDossier(key,i);
+  }
+});
+async function openInline(c,key,i){
+  const v=DATA[key][i];
+  let info=c.querySelector(".info");
+  if(!info){
+    info=document.createElement("div");info.className="info";
+    info.innerHTML=`<p>${v.desc||""}</p>
+      ${v.arm?`<div class="armt">Armament &amp; Kit</div><ul class="arm">${v.arm.map(a=>`<li>${a}</li>`).join("")}</ul>`:""}
+      <div class="stats"><span class="brnote">Loading BR…</span></div>
+      <div class="links">${v.dev?`<a href="${v.dev}" target="_blank">Dev Blog ↗</a>`:""}<a class="wk" href="${wikiSearch(v.name)}" target="_blank">Full Wiki Stats ↗</a></div>`;
+    c.appendChild(info);
+  }
+  c.classList.add("open");
+  const ld=await localData();
+  const b=ld&&ld.brs&&ld.brs[v.name];
+  const wk=info.querySelector(".wk");if(wk)wk.href=wikiHref(v,b);
+  const st=info.querySelector(".stats");if(st)st.innerHTML=brHtml(b,ld);
+}
+/* ---------- toolbar / tabs / features / news ---------- */
+function renderToolbar(key){
+  const tb=$("#toolbar");
+  if(!DATA[key]){tb.classList.add("hidden");return;}
+  tb.classList.remove("hidden");
+  const nats=[...new Set(DATA[key].map(v=>v.nation))];
+  tb.innerHTML=`<label>Sort</label>
+    <select id="sortSel">
+      <option value="new">Newest announced</option><option value="old">Oldest announced</option>
+      <option value="nation">By nation</option><option value="az">Name A–Z</option><option value="za">Name Z–A</option>
+    </select>
+    <label>Nation</label>
+    <button class="chip ${natFilter==="all"?"on":""}" data-n="all">All</button>
+    ${nats.map(n=>`<button class="chip ${natFilter===n?"on":""}" data-n="${n}">${FLAGS[n]} ${NATION[n]}</button>`).join("")}
+    <span class="count" id="cnt"></span>`;
+  $("#sortSel").value=sortBy;
+  $("#sortSel").onchange=e=>{sortBy=e.target.value;drawGrid(cur);};
+  tb.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
+    natFilter=c.dataset.n;
+    tb.querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x.dataset.n===natFilter));
+    drawGrid(cur);
+  });
+}
+function baSlider(i,[title,blurb,before,after]){
+  return `<div class="feat ai" style="animation-delay:${i*.08}s"><div class="ba">
+    <img src="${after}"><div class="top" style="width:50%"><img src="${before}"></div>
+    <div class="bar" style="left:50%"></div><div class="knob" style="left:50%">⇄</div>
+    <span class="lb before">Before</span><span class="lb after">After</span>
+    <input type="range" min="0" max="100" value="50"></div>
+   <div class="fbody"><h3>${title}</h3><p>${blurb}</p></div></div>`;
+}
+function renderFeatures(){
+  setContent(`<div class="sec-title">Remodels — Before / After</div>`+
+    BEFORE_AFTER.map((b,i)=>baSlider(i,b)).join("")+
+    `<div class="sec-title">Visual Reworks</div>`+
+    MAP_REWORKS.map((f,i)=>`<div class="feat ai" style="animation-delay:${i*.07}s">${f[2]?`<img class="fimg" loading="lazy" src="${f[2]}" onerror="this.remove()">`:""}<div class="fbody"><h3>${f[0]}</h3><p>${f[1]}</p></div></div>`).join("")+
+    `<div class="sec-title">New Mechanics</div>`+
+    FEATURES.map((f,i)=>`<div class="feat ai" style="animation-delay:${i*.07}s">${f[2]?`<img class="fimg" loading="lazy" src="${f[2]}" onerror="this.remove()">`:""}<div class="fbody"><h3>${f[0]}</h3><p>${f[1]}</p></div></div>`).join(""));
+  document.querySelectorAll(".ba").forEach(ba=>{
+    const inp=ba.querySelector("input");
+    inp.oninput=()=>{const p=inp.value+"%";ba.querySelector(".top").style.width=p;ba.querySelector(".bar").style.left=p;ba.querySelector(".knob").style.left=p;};
+  });
+}
+function renderNews(){
+  setContent(`<div class="sec-title">Latest Official News</div>
+   <div class="newslist" id="newslist"><div class="note">Fetching latest news…</div></div>
+   <div class="note">Source: <a href="https://warthunder.com/en/news" target="_blank">warthunder.com/en/news ↗</a></div>`);
+  loadNews();
+}
+function show(key){
+  cur=key;
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.k===key));
+  renderToolbar(key);
+  if(key==="features")renderFeatures();
+  else if(key==="news")renderNews();
+  else drawGrid(key);
+}
+$("#tabs").innerHTML=TABS.map(([k,l])=>`<button data-k="${k}">${l}${DATA[k]?`<span class="cnt">${DATA[k].length}</span>`:""}</button>`).join("");
+$("#tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(b)show(b.dataset.k);});
+/* ---------- settings panel ---------- */
+function buildOpts(id,items,get,set){
+  const el=$(id);
+  el.innerHTML=items.map(([v,l])=>`<button class="opt" data-v="${v}">${l}</button>`).join("");
+  el.addEventListener("click",e=>{const b=e.target.closest(".opt");if(!b)return;set(b.dataset.v);applySet();show(cur);});
+}
+function syncPanel(){
+  document.querySelectorAll("#thSw .sw").forEach(s=>s.classList.toggle("on",+s.dataset.v===SET.th));
+  const map=[["#layOpts",SET.lay,"#layName",LAYOUTS],["#detOpts",SET.det,"#detName",DETAILS],["#ldOpts",SET.ld,"#ldName",LOADS],["#swOpts",SET.sw,"#swName",SWITCHES],["#hovOpts",SET.hov,"#hovName",HOVERS]];
+  for(const [sel,val,nameSel,items] of map){
+    document.querySelectorAll(sel+" .opt").forEach(o=>o.classList.toggle("on",o.dataset.v===val));
+    const f=items.find(x=>x[0]===val);$(nameSel).textContent=f?f[1]:"";
+  }
+  const t=THEMES.find(x=>x[0]===SET.th);$("#thName").textContent=t?"#"+t[0]+" "+t[1]:"";
+}
+$("#thSw").innerHTML=THEMES.map(([n,nm,bg,ac])=>`<button class="sw" data-v="${n}" title="#${n} ${nm}" style="background:linear-gradient(135deg,${bg} 60%,${ac})"><u>${n}</u><i>${nm.split(" ")[0]}</i></button>`).join("");
+$("#thSw").addEventListener("click",e=>{const b=e.target.closest(".sw");if(!b)return;SET.th=+b.dataset.v;applySet();});
+buildOpts("#layOpts",LAYOUTS,()=>SET.lay,v=>SET.lay=v);
+buildOpts("#detOpts",DETAILS,()=>SET.det,v=>SET.det=v);
+buildOpts("#ldOpts",LOADS,()=>SET.ld,v=>SET.ld=v);
+buildOpts("#swOpts",SWITCHES,()=>SET.sw,v=>SET.sw=v);
+buildOpts("#hovOpts",HOVERS,()=>SET.hov,v=>SET.hov=v);
+function openSettings(){$("#sovl").classList.add("show");$("#spanel").classList.add("show");}
+function closeSettings(){$("#sovl").classList.remove("show");$("#spanel").classList.remove("show");}
+$("#gearBtn").onclick=openSettings;
+$("#sovl").onclick=closeSettings;
+$("#sreset").onclick=()=>{SET={...DEF};applySet();show(cur);};
+/* ---------- live data ---------- */
+let __ld;
+async function localData(){
+  if(__ld!==undefined)return __ld;
+  try{const r=await fetch("data/live.json?t="+Date.now(),{signal:AbortSignal.timeout(6000)});
+      __ld=r.ok?await r.json():null;}catch(e){__ld=null;}
+  return __ld;
+}
+const PROXIES=["https://api.allorigins.win/raw?url=","https://corsproxy.io/?url="];
+async function proxyFetch(url){
+  for(const p of PROXIES){
+    try{const r=await fetch(p+encodeURIComponent(url),{signal:AbortSignal.timeout(9000)});
+      if(r.ok){const t=await r.text();if(t&&t.length>200)return t;}}catch(e){}
+  }
+  return null;
+}
+async function loadNews(){
+  const el=$("#newslist");if(!el)return;
+  const ld=await localData();
+  if(ld&&ld.news&&ld.news.length){
+    el.innerHTML=ld.news.slice(0,15).map(n=>`<a class="newsitem" href="${n.url}" target="_blank"><span class="d">▸</span><span class="t">${n.title}</span></a>`).join("");
+    setStatus(true,ld.updated);return;
+  }
+  const html=await proxyFetch("https://warthunder.com/en/news");
+  if(!html){el.innerHTML=`<div class="note">Live fetch blocked — open warthunder.com/en/news directly.</div>`;return;}
+  try{
+    const doc=new DOMParser().parseFromString(html,"text/html");
+    const seen=new Set(),items=[];
+    doc.querySelectorAll('a[href*="/en/news/"]').forEach(a=>{
+      const href=a.getAttribute("href")||"";
+      const m=href.match(/\/en\/news\/(\d+)[^"]*/);
+      const txt=(a.textContent||"").replace(/\s+/g," ").trim();
+      if(m&&txt.length>12&&!seen.has(m[1])){seen.add(m[1]);items.push({url:"https://warthunder.com"+href.replace(/^https?:\/\/[^/]+/,""),t:txt});}
+    });
+    if(!items.length)throw 0;
+    el.innerHTML=items.slice(0,15).map(n=>`<a class="newsitem" href="${n.url}" target="_blank"><span class="d">▸</span><span class="t">${n.t}</span></a>`).join("");
+    setStatus(true);
+  }catch(e){el.innerHTML=`<div class="note">Couldn't parse live news right now.</div>`;}
+}
+const BAKED_CHANGELOG_ID=1862;
+async function checkNewPatch(){
+  const ld=await localData();
+  let newest=null;
+  if(ld&&ld.latest_changelog){setStatus(true,ld.updated);newest=ld.latest_changelog;}
+  else{
+    const html=await proxyFetch("https://warthunder.com/en/game/changelog");
+    setStatus(!!html);
+    if(!html)return;
+    try{
+      const doc=new DOMParser().parseFromString(html,"text/html");
+      doc.querySelectorAll('a[href*="/game/changelog/"]').forEach(a=>{
+        const m=(a.getAttribute("href")||"").match(/\/game\/changelog\/(?:current\/)?(\d+)/);
+        if(!m)return;
+        const id=+m[1],title=(a.textContent||"").replace(/\s+/g," ").trim();
+        if(!newest||id>newest.id)newest={id,title,url:"https://warthunder.com/en/game/changelog/current/"+id};
+      });
+    }catch(e){return;}
+  }
+  if(newest&&newest.id>BAKED_CHANGELOG_ID){
+    $("#patchAlert").innerHTML=`<span style="color:var(--acc2);font-weight:700">◉ NEWER UPDATE DETECTED:</span>
+      <a href="${newest.url}" target="_blank">${newest.title||"open changelog"} ↗</a>
+      <span style="color:var(--dim)">— ask Claude to refresh this page's vehicle cards</span>`;
+  }
+}
+function setStatus(live,when){
+  $("#dot").className="dot "+(live?"live":"");
+  $("#statusTxt").textContent=live?("LIVE"+(when?" · "+when.slice(0,10):"")):"CACHED · 9 Jul 2026";
+}
+/* boot */
+applySet();
+show("ground");
+checkNewPatch();
+</script>
+</body>
+</html>
